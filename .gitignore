@@ -17,3 +17,6 @@ wheels/
 
 # Config
 config.yaml
+
+# Env
+.env

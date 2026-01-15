@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from dotenv import load_dotenv
 
 # Global configuration cache
 __config: dict[str, Any] | None = None
@@ -49,13 +50,31 @@ def load_config(config_path: str | Path | None = None) -> dict[str, Any]:
         with path.open("r", encoding="utf-8") as f:
             try:
                 data = yaml.safe_load(f)
-                __config = data if data is not None else {}
+                config_data = data if data is not None else {}
+                __config = _expand_env_vars(config_data)
             except yaml.YAMLError as e:
                 raise yaml.YAMLError(
                     f"Error parsing configuration file {path}: {e}"
                 ) from e
 
     return __config
+
+
+def _expand_env_vars(data: Any) -> Any:
+    """
+    Recursively expand environment variables in the configuration data.
+    Environment variables are identified by a leading '$' (e.g., '$API_KEY').
+    """
+    if isinstance(data, dict):
+        return {k: _expand_env_vars(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [_expand_env_vars(item) for item in data]
+    elif isinstance(data, str) and data.startswith("$"):
+        # Remove the leading '$' and get the environment variable value
+        env_var = data[1:]
+        # If the environment variable is not set, return the original string
+        return os.getenv(env_var, data)
+    return data
 
 
 def get_config_section(key: str | list[str]) -> Any:
@@ -85,18 +104,6 @@ def get_config_section(key: str | list[str]) -> Any:
     return section
 
 
-# Eagerly load configuration when the module is imported.
-# This ensures that configuration errors are caught early.
-if os.getenv("MINI_OPENCODE_SKIP_CONFIG_LOAD") != "1":
-    try:
-        load_config()
-    except FileNotFoundError:
-        # In some contexts (like building docs or simple imports),
-        # we might not want to crash if config is missing.
-        # But for an agent, it's usually better to fail fast.
-        pass
-
-
 if __name__ == "__main__":
-    load_config()
+    load_dotenv()
     print(get_config_section("models"))
