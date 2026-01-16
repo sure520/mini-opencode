@@ -14,7 +14,7 @@ from mini_opencode.agents import create_coding_agent
 from mini_opencode.tools import load_mcp_tools
 
 from .components import ChatView, EditorTabs, TerminalView, TodoListView
-from .theme import DARK_THEME
+from .theme import DARK_THEME, LIGHT_THEME, is_dark_mode
 
 
 class ConsoleApp(App):
@@ -29,11 +29,13 @@ class ConsoleApp(App):
     }
 
     Header {
-        background: #161c10;
+        background: $primary;
+        color: $foreground;
     }
 
     Footer {
-        background: #181c40;
+        background: $surface;
+        color: $secondary;
     }
 
     #left-panel {
@@ -103,13 +105,21 @@ class ConsoleApp(App):
 
     def on_mount(self) -> None:
         self.register_theme(DARK_THEME)
-        self.theme = "dark"
+        self.register_theme(LIGHT_THEME)
+        self.theme = "dark" if is_dark_mode() else "light"
         self.sub_title = project.root_dir
         self.focus_input()
         editor_tabs = self.query_one("#editor-tabs", EditorTabs)
         editor_tabs.open_welcome()
 
         asyncio.create_task(self._init_agent())
+        self.set_interval(2.0, self._check_system_theme)
+
+    def _check_system_theme(self) -> None:
+        """Check and update the theme based on system settings."""
+        new_theme = "dark" if is_dark_mode() else "light"
+        if self.theme != new_theme:
+            self.theme = new_theme
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         if not self.is_generating and event.input.id == "chat-input":
