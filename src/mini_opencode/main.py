@@ -5,6 +5,7 @@ Main entry point for the mini-OpenCode application.
 import sys
 from pathlib import Path
 
+from .cli import ConsoleApp
 from .project import project
 
 
@@ -22,3 +23,6 @@ def main() -> None:
         except (FileNotFoundError, NotADirectoryError) as e:
             print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)
+
+        app = ConsoleApp()
+        app.run()
