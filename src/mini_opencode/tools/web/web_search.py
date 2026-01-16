@@ -7,7 +7,7 @@ from mini_opencode.config import get_config_section
 warnings.filterwarnings("ignore", category=UserWarning, module="langchain_tavily")
 from langchain_tavily import TavilySearch  # noqa: E402
 
-web_search = TavilySearch(
+web_search_tool = TavilySearch(
     name="web_search",
     max_results=5,
     tavily_api_key=get_config_section(
@@ -16,4 +16,6 @@ web_search = TavilySearch(
 )
 
 if __name__ == "__main__":
-    print(json.dumps(web_search.invoke("NBA Finals"), ensure_ascii=False, indent=4))
+    print(
+        json.dumps(web_search_tool.invoke("NBA Finals"), ensure_ascii=False, indent=4)
+    )

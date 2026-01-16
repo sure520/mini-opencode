@@ -4,8 +4,8 @@ from langchain.tools import tool
 from mini_opencode.config import get_config_section
 
 
-@tool
-def web_crawl(url: str) -> str:
+@tool("web_crawl", parse_docstring=True)
+def web_crawl_tool(url: str) -> str:
     """
     Crawl a website and return the markdown content.
 
