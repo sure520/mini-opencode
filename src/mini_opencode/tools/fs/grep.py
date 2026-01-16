@@ -1,16 +1,13 @@
 import subprocess
 from typing import Literal, Optional
 
-from langchain.tools import ToolRuntime, tool
-
-from mini_opencode.tools.reminders import generate_reminders
+from langchain.tools import tool
 
 from .ignore import DEFAULT_IGNORE_PATTERNS
 
 
 @tool("grep", parse_docstring=True)
 def grep_tool(
-    runtime: ToolRuntime,
     pattern: str,
     path: Optional[str] = None,
     glob: Optional[str] = None,
@@ -33,7 +30,6 @@ def grep_tool(
     Supports full regex syntax, file filtering, and various output modes.
 
     Args:
-        runtime: The tool runtime instance.
         pattern: The regular expression pattern to search for in file contents.
                 Uses ripgrep syntax - literal braces need escaping (e.g., `interface\\{\\}` for `interface{}`).
         path: File or directory to search in. Defaults to current working directory if not specified.
@@ -127,15 +123,12 @@ def grep_tool(
             output = "\n".join(lines[start:end])
 
         # Format the result
-        reminders = generate_reminders(runtime)
         if output:
-            return (
-                f"Here's the result in {search_path}:\n\n```\n{output}\n```{reminders}"
-            )
+            return f"Here's the result in {search_path}:\n\n```\n{output}\n```"
         elif result.returncode == 1:
-            return f"No matches found in {search_path}.{reminders}"
+            return f"No matches found in {search_path}."
         else:
-            return f"Search completed but no output was returned.{reminders}"
+            return "Search completed but no output was returned."
 
     except Exception as e:
         return f"Unexpected error: {str(e)}"

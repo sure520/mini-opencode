@@ -1,10 +1,9 @@
 import threading
 from typing import Optional
 
-from langchain.tools import ToolRuntime, tool
+from langchain.tools import tool
 
 from mini_opencode.project import project
-from mini_opencode.tools.reminders import generate_reminders
 
 from .bash_terminal import BashTerminal
 
@@ -16,7 +15,6 @@ keep_alive_terminal: BashTerminal | None = None
 
 @tool("bash", parse_docstring=True)
 def bash_tool(
-    runtime: ToolRuntime,
     command: str,
     reset_cwd: Optional[bool] = False,
     timeout: Optional[int] = 60,
@@ -61,5 +59,4 @@ def bash_tool(
                     pass
             keep_alive_terminal = None
 
-    reminders = generate_reminders(runtime)
-    return f"```\n{output}\n```{reminders}"
+    return f"```\n{output}\n```"

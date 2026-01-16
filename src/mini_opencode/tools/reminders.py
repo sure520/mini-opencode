@@ -21,12 +21,14 @@ def generate_reminders(runtime: ToolRuntime) -> str:
     ]
 
     if not unfinished_todos:
-        return ""
+        return "All tasks completed. You can now reply to the user."
 
-    reminders = [
-        f"- {len(unfinished_todos)} todo{' is' if len(unfinished_todos) == 1 else 's are'} not completed. "
-        "Before you present the final result to the user, **make sure** all the todos are completed.",
-        "- Immediately update the TODO list using the `todo_write` tool.",
-    ]
+    status_summary = ", ".join([f"#{t.id} {t.title}" for t in unfinished_todos[:3]])
+    if len(unfinished_todos) > 3:
+        status_summary += f" and {len(unfinished_todos) - 3} more"
 
-    return "\n\nIMPORTANT:\n" + "\n".join(reminders)
+    return (
+        f"--- TASK STATUS ---\n"
+        f"Pending: {status_summary}\n"
+        f"Action: Complete these before finishing. Use 'todo_write' to track progress."
+    )

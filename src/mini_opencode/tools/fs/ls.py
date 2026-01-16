@@ -2,16 +2,13 @@ import fnmatch
 from pathlib import Path
 from typing import Optional
 
-from langchain.tools import ToolRuntime, tool
-
-from mini_opencode.tools.reminders import generate_reminders
+from langchain.tools import tool
 
 from .ignore import DEFAULT_IGNORE_PATTERNS
 
 
 @tool("ls", parse_docstring=True)
 def ls_tool(
-    runtime: ToolRuntime,
     path: str,
     match: Optional[list[str]] = None,
     ignore: Optional[list[str]] = None,
@@ -19,7 +16,6 @@ def ls_tool(
     """Lists files and directories in a given path. Optionally provide an array of glob patterns to match and ignore.
 
     Args:
-        runtime: The ToolRuntime object containing the current agent state.
         path: The absolute path to list files and directories from. Relative paths are **not** allowed.
         match: An optional array of glob patterns to match.
         ignore: An optional array of glob patterns to ignore.
@@ -70,11 +66,9 @@ def ls_tool(
     if all_ignore:
         items = [item for item in items if not should_exclude(item.name, all_ignore)]
 
-    reminders = generate_reminders(runtime)
-
     # Format the output
     if not items:
-        return f"No items found in {path}.{reminders}"
+        return f"No items found in {path}."
 
     result_lines = []
     for item in items:
@@ -83,8 +77,4 @@ def ls_tool(
         else:
             result_lines.append(item.name)
 
-    return (
-        f"Here's the result in {path}: \n```\n"
-        + "\n".join(result_lines)
-        + f"\n```{reminders}"
-    )
+    return f"Here's the result in {path}: \n```\n" + "\n".join(result_lines) + "\n```"

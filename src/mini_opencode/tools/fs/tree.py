@@ -2,9 +2,7 @@ import fnmatch
 from pathlib import Path
 from typing import Optional
 
-from langchain.tools import ToolRuntime, tool
-
-from mini_opencode.tools.reminders import generate_reminders
+from langchain.tools import tool
 
 from .ignore import DEFAULT_IGNORE_PATTERNS
 
@@ -110,7 +108,6 @@ def generate_tree(
 
 @tool("tree", parse_docstring=True)
 def tree_tool(
-    runtime: ToolRuntime,
     path: Optional[str] = None,
     max_depth: Optional[int] = 3,
 ) -> str:
@@ -159,7 +156,7 @@ def tree_tool(
         output = "\n".join(lines)
 
         # Format the result
-        return f"Here's the result in {search_path}:\n\n```\n{output}\n```{generate_reminders(runtime)}"
+        return f"Here's the result in {search_path}:\n\n```\n{output}\n```"
 
     except Exception as e:
         return f"Error: {str(e)}"
