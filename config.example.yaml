@@ -24,6 +24,8 @@ tools:
   configs:
     web_crawl:
       api_key: $FIRECRAWL_API_KEY
+    web_search:
+      api_key: $TAVILY_API_KEY
   mcp_servers:
     docs-langchain:
       transport: 'streamable_http'

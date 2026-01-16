@@ -10,6 +10,8 @@ from dotenv import load_dotenv
 __config: dict[str, Any] | None = None
 __lock = threading.Lock()
 
+load_dotenv()
+
 
 def load_config(config_path: str | Path | None = None) -> dict[str, Any]:
     """
@@ -105,5 +107,4 @@ def get_config_section(key: str | list[str]) -> Any:
 
 
 if __name__ == "__main__":
-    load_dotenv()
     print(get_config_section("models"))

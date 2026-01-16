@@ -1,10 +1,7 @@
-from dotenv import load_dotenv
 from firecrawl import FirecrawlApp
 from langchain.tools import tool
 
 from mini_opencode.config import get_config_section
-
-load_dotenv()
 
 
 @tool
@@ -34,7 +31,3 @@ def web_crawl(url: str) -> str:
     firecrawl = FirecrawlApp(api_key=api_key)
     response = firecrawl.scrape(url=url, formats=["markdown"], only_main_content=True)
     return response.markdown
-
-
-if __name__ == "__main__":
-    print(web_crawl.invoke("https://firecrawl.dev"))

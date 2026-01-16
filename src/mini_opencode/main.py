@@ -5,12 +5,7 @@ Main entry point for the mini-OpenCode application.
 import sys
 from pathlib import Path
 
-from dotenv import load_dotenv
-
 from .project import project
-
-# Load environment variables from .env file if it exists
-load_dotenv()
 
 
 def main() -> None:

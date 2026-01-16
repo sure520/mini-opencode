@@ -1,4 +1,3 @@
-from dotenv import load_dotenv
 from langchain_core.language_models import BaseChatModel
 from langchain_deepseek import ChatDeepSeek
 from langchain_openai.chat_models import ChatOpenAI
@@ -52,6 +51,5 @@ def init_chat_model() -> BaseChatModel:
 
 
 if __name__ == "__main__":
-    load_dotenv()
     chat_model = init_chat_model()
     print(chat_model.invoke("Hello!"))
