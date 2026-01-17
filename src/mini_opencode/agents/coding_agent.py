@@ -6,6 +6,7 @@ from langgraph.checkpoint.base import RunnableConfig
 from langgraph.checkpoint.memory import MemorySaver
 
 from mini_opencode import project
+from mini_opencode.config import get_config_section
 from mini_opencode.models import init_chat_model
 from mini_opencode.prompts import apply_prompt_template
 from mini_opencode.tools import (
@@ -23,6 +24,19 @@ from mini_opencode.tools import (
 
 from .state import CodingAgentState
 
+TOOL_MAP = {
+    "bash": bash_tool,
+    "edit": edit_tool,
+    "grep": grep_tool,
+    "ls": ls_tool,
+    "read": read_tool,
+    "todo_write": todo_write_tool,
+    "tree": tree_tool,
+    "web_crawl": web_crawl_tool,
+    "web_search": web_search_tool,
+    "write": write_tool,
+}
+
 
 def create_coding_agent(
     plugin_tools: list[BaseTool] = [], checkpointer: MemorySaver | None = None, **kwargs
@@ -37,9 +51,11 @@ def create_coding_agent(
     Returns:
         The coding agent.
     """
-    return create_agent(
-        model=init_chat_model(),
-        tools=[
+    enabled_tools_config = get_config_section(["tools", "enabled"])
+    if enabled_tools_config is not None and isinstance(enabled_tools_config, list):
+        tools = [TOOL_MAP[name] for name in enabled_tools_config if name in TOOL_MAP]
+    else:
+        tools = [
             bash_tool,
             edit_tool,
             grep_tool,
@@ -50,6 +66,12 @@ def create_coding_agent(
             web_crawl_tool,
             web_search_tool,
             write_tool,
+        ]
+
+    return create_agent(
+        model=init_chat_model(),
+        tools=[
+            *tools,
             *plugin_tools,
         ],
         system_prompt=apply_prompt_template(
