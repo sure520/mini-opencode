@@ -187,7 +187,7 @@ class ConsoleApp(App):
             self._process_tool_message(message)
 
     _terminal_tool_calls: list[str] = []
-    _mutable_text_editor_tool_calls: dict[str, str] = {}
+    _file_modification_tool_calls: dict[str, str] = {}
 
     def _process_tool_call_message(self, message: AIMessage) -> None:
         terminal_view = self.query_one("#terminal-view", TerminalView)
@@ -215,19 +215,14 @@ class ConsoleApp(App):
             elif tool_name == "todo_write":
                 bottom_right_tabs.active = "todo-tab"
                 todo_list_view.update_items(tool_args["todos"])
-            elif tool_name == "text_editor":
-                command = tool_args["command"]
-                if command == "create":
-                    editor_tabs.open_file(
-                        tool_args["path"],
-                        tool_args["file_text"],
-                    )
-                else:
-                    editor_tabs.open_file(tool_args["path"])
-                if command != "view":
-                    self._mutable_text_editor_tool_calls[tool_call["id"]] = tool_args[
-                        "path"
-                    ]
+            elif tool_name == "read":
+                editor_tabs.open_file(tool_args["path"])
+            elif tool_name == "write":
+                editor_tabs.open_file(tool_args["path"], tool_args.get("content"))
+                self._file_modification_tool_calls[tool_call["id"]] = tool_args["path"]
+            elif tool_name == "edit":
+                editor_tabs.open_file(tool_args["path"])
+                self._file_modification_tool_calls[tool_call["id"]] = tool_args["path"]
 
     def _process_tool_message(self, message: ToolMessage) -> None:
         terminal_view = self.query_one("#terminal-view", TerminalView)
@@ -238,9 +233,9 @@ class ConsoleApp(App):
                 muted=True,
             )
             self._terminal_tool_calls.remove(message.tool_call_id)
-        elif self._mutable_text_editor_tool_calls.get(message.tool_call_id):
-            path = self._mutable_text_editor_tool_calls[message.tool_call_id]
-            del self._mutable_text_editor_tool_calls[message.tool_call_id]
+        elif self._file_modification_tool_calls.get(message.tool_call_id):
+            path = self._file_modification_tool_calls[message.tool_call_id]
+            del self._file_modification_tool_calls[message.tool_call_id]
             editor_tabs = self.query_one("#editor-tabs", EditorTabs)
             editor_tabs.open_file(path)
 
