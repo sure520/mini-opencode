@@ -1,12 +1,15 @@
 from pathlib import Path
 
-from langchain.tools import tool
+from langchain.tools import ToolRuntime, tool
+
+from mini_opencode.tools import generate_reminders
 
 from .text_editor import TextEditor
 
 
 @tool("edit", parse_docstring=True)
 def edit_tool(
+    runtime: ToolRuntime,
     path: str,
     old_str: str,
     new_str: str,
@@ -23,10 +26,11 @@ def edit_tool(
         new_str: The new text to insert in place of the old text.
     """
     _path = Path(path)
+    reminders = generate_reminders(runtime)
     try:
         editor = TextEditor()
         editor.validate_path(_path)
         editor.edit(_path, old_str, new_str)
-        return f"Successfully updated {_path}."
+        return f"Successfully updated {_path}.{reminders}"
     except Exception as e:
-        return f"Error: {e}"
+        return f"Error: {e}{reminders}"
