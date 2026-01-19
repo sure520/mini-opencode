@@ -13,8 +13,6 @@ wheels/
 .langgraph_api/
 langgraph.json
 
-
-
 # OS
 .DS_Store
 
@@ -22,7 +20,6 @@ langgraph.json
 .idea/
 .vscode/
 .trae/
-
 
 # Config
 config.yaml
