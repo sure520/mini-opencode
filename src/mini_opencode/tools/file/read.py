@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Optional
 
 from langchain.tools import ToolRuntime, tool
 
@@ -12,7 +11,7 @@ from .text_editor import TextEditor
 def read_tool(
     runtime: ToolRuntime,
     path: str,
-    read_range: Optional[list[int]] = None,
+    read_range: list[int] | None = None,
 ) -> str:
     """
     Read the content of a file with line numbers.

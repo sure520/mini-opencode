@@ -1,5 +1,4 @@
 import threading
-from typing import Optional
 
 from langchain.tools import ToolRuntime, tool
 
@@ -18,8 +17,8 @@ keep_alive_terminal: BashTerminal | None = None
 def bash_tool(
     runtime: ToolRuntime,
     command: str,
-    reset_cwd: Optional[bool] = False,
-    timeout: Optional[int] = 60,
+    reset_cwd: bool | None = False,
+    timeout: int | None = 60,
 ):
     """Execute a standard bash command in a keep-alive shell, and return the output if successful or error message if failed.
 

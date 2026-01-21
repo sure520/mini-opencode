@@ -1,5 +1,5 @@
 import subprocess
-from typing import Literal, Optional
+from typing import Literal
 
 from langchain.tools import ToolRuntime, tool
 
@@ -12,17 +12,17 @@ from .ignore import DEFAULT_IGNORE_PATTERNS
 def grep_tool(
     runtime: ToolRuntime,
     pattern: str,
-    path: Optional[str] = None,
-    glob: Optional[str] = None,
+    path: str | None = None,
+    glob: str | None = None,
     output_mode: Literal[
         "content", "files_with_matches", "count"
     ] = "files_with_matches",
-    B: Optional[int] = None,
-    A: Optional[int] = None,
-    C: Optional[int] = None,
-    n: Optional[bool] = None,
-    i: Optional[bool] = None,
-    type: Optional[str] = None,
+    B: int | None = None,
+    A: int | None = None,
+    C: int | None = None,
+    n: bool | None = None,
+    i: bool | None = None,
+    type: str | None = None,
     head_limit: int = 100,
     offset: int = 0,
     multiline: bool = False,
