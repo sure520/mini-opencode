@@ -1,15 +1,10 @@
-from textual.binding import Binding
+from textual import events
 from textual.message import Message
 from textual.widgets import TextArea
 
 
 class ChatInput(TextArea):
     """Custom input for chat with multi-line support"""
-
-    BINDINGS = [
-        Binding("enter", "submit", "Send message", show=False),
-        Binding("shift+enter", "newline", "New line", show=False),
-    ]
 
     class Submitted(Message):
         def __init__(self, value: str) -> None:
@@ -35,11 +30,25 @@ class ChatInput(TextArea):
     """
 
     def __init__(self, *args, **kwargs):
-        # Pop placeholder as TextArea doesn't support it in some versions
-        kwargs.pop("placeholder", None)
+        # Set default placeholder if not provided
+        if "placeholder" not in kwargs:
+            kwargs["placeholder"] = (
+                "Input your message here, press Enter to send, Ctrl+J to newline"
+            )
         super().__init__(*args, **kwargs)
         self.show_line_numbers = False
         self.soft_wrap = True
+
+    def on_key(self, event: events.Key) -> None:
+        """Handle key presses for submit and newline."""
+        if event.key == "enter":
+            self.action_submit()
+            event.prevent_default()
+            event.stop()
+        elif event.key == "ctrl+j":
+            self.action_newline()
+            event.prevent_default()
+            event.stop()
 
     def action_submit(self) -> None:
         if self.text.strip():

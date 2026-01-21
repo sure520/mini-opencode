@@ -32,9 +32,7 @@ class ChatView(Vertical):
     def compose(self) -> ComposeResult:
         """Compose the chat interface"""
         yield MessageListView(id="message-list")
-        yield ChatInput(
-            id="chat-input", placeholder="Type a message and press Enter..."
-        )
+        yield ChatInput(id="chat-input")
 
     def on_mount(self) -> None:
         """Initialize chat with welcome message"""
