@@ -1,10 +1,15 @@
-from textual import events
+from textual.binding import Binding
 from textual.message import Message
 from textual.widgets import TextArea
 
 
 class ChatInput(TextArea):
     """Custom input for chat with multi-line support"""
+
+    BINDINGS = [
+        Binding("enter", "submit", "Send message", show=False),
+        Binding("shift+enter", "newline", "New line", show=False),
+    ]
 
     class Submitted(Message):
         def __init__(self, value: str) -> None:
@@ -16,7 +21,7 @@ class ChatInput(TextArea):
         dock: bottom;
         margin: 1 2;
         padding: 0 1;
-        background: $panel;
+        background: $boost;
         border: none;
         width: 100%;
         height: 5;
@@ -25,7 +30,7 @@ class ChatInput(TextArea):
 
     ChatInput:focus {
         border: none;
-        background: $panel;
+        background: $boost;
     }
     """
 
@@ -35,15 +40,6 @@ class ChatInput(TextArea):
         super().__init__(*args, **kwargs)
         self.show_line_numbers = False
         self.soft_wrap = True
-
-    def on_key(self, event: events.Key) -> None:
-        """Handle key events to override default TextArea behavior."""
-        if event.key == "enter":
-            event.prevent_default()
-            self.action_submit()
-        elif event.key == "shift+enter":
-            event.prevent_default()
-            self.action_newline()
 
     def action_submit(self) -> None:
         if self.text.strip():
