@@ -1,7 +1,6 @@
 import os
 
 from langchain.agents import create_agent
-from langchain.agents.middleware import SummarizationMiddleware
 from langchain.tools import BaseTool
 from langgraph.checkpoint.base import RunnableConfig
 from langgraph.checkpoint.memory import MemorySaver
@@ -79,12 +78,6 @@ def create_coding_agent(
     # Initialize system prompt
     system_prompt = apply_prompt_template("coding_agent", PROJECT_ROOT=project.root_dir)
 
-    # Initialize middleware
-    summarization_middleware = SummarizationMiddleware(
-        model=model, trigger=("fraction", 0.95), keep=("fraction", 0.3)
-    )
-    middleware = [summarization_middleware]
-
     return create_agent(
         model=model,
         tools=[
@@ -92,7 +85,6 @@ def create_coding_agent(
             *plugin_tools,
         ],
         system_prompt=system_prompt,
-        middleware=middleware,
         state_schema=CodingAgentState,
         checkpointer=checkpointer,
         name="coding_agent",

@@ -119,7 +119,7 @@ class ConsoleApp(App):
         self.register_theme(LIGHT_THEME)
         self.theme = "dark" if is_dark_mode() else "light"
         self.sub_title = project.root_dir
-        self.focus_input()
+        self.is_generating = True
         editor_tabs = self.query_one("#editor-tabs", EditorTabs)
         editor_tabs.open_welcome()
 
@@ -135,17 +135,27 @@ class ConsoleApp(App):
             tool_count = len(mcp_tools)
             if tool_count > 0:
                 terminal_view.write(
-                    f"- {tool_count} tool{' is ' if tool_count == 1 else 's are'} loaded.\n",
+                    f"- {tool_count} tool{' is' if tool_count == 1 else 's are'} loaded.\n",
                     True,
                 )
             else:
-                terminal_view.write("No tools found.\n", True)
+                terminal_view.write("- No tools found.\n", True)
         except Exception:
-            terminal_view.write("Error loading tools.\n", True)
+            terminal_view.write("- Error loading tools.\n", True)
 
-        self._coding_agent = create_coding_agent(
-            plugin_tools=mcp_tools, checkpointer=self._checkpointer
-        )
+        terminal_view.write("$ Loading agent...")
+        try:
+            self._coding_agent = create_coding_agent(
+                plugin_tools=mcp_tools, checkpointer=self._checkpointer
+            )
+            terminal_view.write("- Agent loaded successfully.\n", True)
+            self.is_generating = False
+            self.focus_input()
+        except Exception as e:
+            # Fatal error, exit the application
+            terminal_view.write(f"- Error loading agent: {e}\n", True)
+            await asyncio.sleep(3)
+            self.exit(1)
 
     def _check_system_theme(self) -> None:
         """Check and update the theme based on system settings."""
