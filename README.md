@@ -1,3 +1,5 @@
+<div align="center">
+
 # mini-OpenCode
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -5,6 +7,13 @@
 [![Code Style: Google](https://img.shields.io/badge/code%20style-google-3666d6.svg)](https://google.github.io/styleguide/pyguide.html)
 
 **mini-OpenCode** is a lightweight, experimental AI Coding Agent inspired by [Deer-Code](https://github.com/MagicCube/deer-code) and [OpenCode](https://github.com/anomalyco/opencode). It demonstrates how Large Language Models (LLMs) can plan, reason, and iteratively write code with minimal infrastructure. Built on [LangGraph](https://github.com/langchain-ai/langgraph), it serves as a hackable foundation for understanding and building agentic coding systems.
+
+<br/>
+<img src="docs/images/tui_light_theme.png" width="45%" alt="Light Theme"/>
+<img src="docs/images/tui_dark_theme.png" width="45%" alt="Dark Theme"/>
+<br/>
+
+</div>
 
 ---
 
@@ -15,7 +24,7 @@
 - **📝 Context-Aware Task Management**: Built-in TODO system to track progress on complex, multi-step tasks.
 - **⚙️ Highly Configurable**: flexible YAML-based configuration for models, tools, and API keys.
 - **🔌 Extensible Architecture**: Supports [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) for integrating external tools and servers.
-- **🎨 Interactive UI**: Features a clean terminal-based interface using [Textual](https://github.com/Textualize/textual).
+- **🎨 Interactive UI**: Features a clean terminal-based interface using [Textual](https://github.com/Textualize/textual), with support for automatic dark/light mode switching and streaming model responses.
 - **🔒 Type Safe**: Fully typed codebase (Python 3.12+) ensuring reliability and developer experience.
 
 ## 📖 Table of Contents
