@@ -4,7 +4,7 @@
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![Code Style: Google](https://img.shields.io/badge/code%20style-google-3666d6.svg)](https://google.github.io/styleguide/pyguide.html)
 
-**mini-OpenCode** is a lightweight, experimental AI Coding Agent inspired by [OpenCode](https://github.com/opencodeai/opencode). It demonstrates how Large Language Models (LLMs) can plan, reason, and iteratively write code with minimal infrastructure. Built on [LangGraph](https://github.com/langchain-ai/langgraph), it serves as a hackable foundation for understanding and building agentic coding systems.
+**mini-OpenCode** is a lightweight, experimental AI Coding Agent inspired by [Deer-Code](https://github.com/MagicCube/deer-code) and [OpenCode](https://github.com/anomalyco/opencode). It demonstrates how Large Language Models (LLMs) can plan, reason, and iteratively write code with minimal infrastructure. Built on [LangGraph](https://github.com/langchain-ai/langgraph), it serves as a hackable foundation for understanding and building agentic coding systems.
 
 ---
 
@@ -28,6 +28,7 @@
 - [Project Structure](#-project-structure)
 - [Development](#-development)
 - [Contributing](#-contributing)
+- [Acknowledgments](#-acknowledgments)
 - [License](#-license)
 
 ## 🚀 Prerequisites
@@ -147,6 +148,13 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 3.  Commit your Changes (follow [Semantic Commits](https://www.conventionalcommits.org/), e.g., `git commit -m 'feat: Add some AmazingFeature'`)
 4.  Push to the Branch (`git push origin feature/AmazingFeature`)
 5.  Open a Pull Request
+
+## 🙏 Acknowledgments
+
+Special thanks to the developers of the following projects for their inspiration and architectural references:
+
+- **[Deer-Code](https://github.com/MagicCube/deer-code)**
+- **[OpenCode](https://github.com/anomalyco/opencode)**
 
 ## 📄 License
 

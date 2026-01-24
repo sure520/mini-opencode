@@ -7,4 +7,4 @@
                                  |_|                                     
  ```
 
-⌨️ mini-OpenCode is a lightweight experimental Coding Agent inspired by OpenCode. It explores how LLMs can plan, reason, and iteratively write code with minimal infrastructure, aiming to provide a simple, hackable foundation for understanding and building agentic coding systems.
+⌨️ mini-OpenCode is a lightweight experimental Coding Agent inspired by Deer-Code and OpenCode. It explores how LLMs can plan, reason, and iteratively write code with minimal infrastructure, aiming to provide a simple, hackable foundation for understanding and building agentic coding systems.
