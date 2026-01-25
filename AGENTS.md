@@ -160,7 +160,7 @@ def validate_path(self, path: Path):
 - Use CSS for styling with theme variables (`$background`, `$primary`, etc.)
 - Implement responsive layouts with containers
 
-## Project Rules (.trae/rules/project_rules.md)
+## Project Rules
 
 The project includes these key guidelines:
 - mini-opencode is a lightweight experimental AI Coding Agent
