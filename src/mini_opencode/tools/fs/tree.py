@@ -1,6 +1,5 @@
 import fnmatch
 from pathlib import Path
-from typing import Optional
 
 from langchain.tools import ToolRuntime, tool
 
@@ -43,9 +42,9 @@ def generate_tree(
     directory: Path,
     root_dir: Path,
     prefix: str = "",
-    max_depth: Optional[int] = None,
+    max_depth: int | None = None,
     current_depth: int = 0,
-    ignore_patterns: Optional[list[str]] = None,
+    ignore_patterns: list[str] | None = None,
 ) -> tuple[list[str], int, int]:
     """Recursively generate tree structure and return (lines, dir_count, file_count)."""
     if ignore_patterns is None:
@@ -111,8 +110,8 @@ def generate_tree(
 @tool("tree", parse_docstring=True)
 def tree_tool(
     runtime: ToolRuntime,
-    path: Optional[str] = None,
-    max_depth: Optional[int] = 3,
+    path: str | None = None,
+    max_depth: int | None = 3,
 ) -> str:
     """Display directory structure in a tree format, similar to the 'tree' command.
 

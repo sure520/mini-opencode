@@ -1,6 +1,5 @@
 import fnmatch
 from pathlib import Path
-from typing import Optional
 
 from langchain.tools import ToolRuntime, tool
 
@@ -13,8 +12,8 @@ from .ignore import DEFAULT_IGNORE_PATTERNS
 def ls_tool(
     runtime: ToolRuntime,
     path: str,
-    match: Optional[list[str]] = None,
-    ignore: Optional[list[str]] = None,
+    match: list[str] | None = None,
+    ignore: list[str] | None = None,
 ) -> str:
     """Lists files and directories in a given path. Optionally provide an array of glob patterns to match and ignore.
 
