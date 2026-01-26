@@ -1,3 +1,4 @@
+from .date import get_today_date_tool
 from .file import edit_tool, read_tool, write_tool
 from .fs import grep_tool, ls_tool, tree_tool
 from .mcp import load_mcp_tools
@@ -8,6 +9,7 @@ from .web import web_crawl_tool, web_search_tool
 __all__ = [
     "todo_write_tool",
     "load_mcp_tools",
+    "get_today_date_tool",
     "edit_tool",
     "read_tool",
     "write_tool",

@@ -12,6 +12,7 @@ from mini_opencode.prompts import apply_prompt_template
 from mini_opencode.tools import (
     bash_tool,
     edit_tool,
+    get_today_date_tool,
     grep_tool,
     ls_tool,
     read_tool,
@@ -27,6 +28,7 @@ from .state import CodingAgentState
 TOOL_MAP = {
     "bash": bash_tool,
     "edit": edit_tool,
+    "get_today_date": get_today_date_tool,
     "grep": grep_tool,
     "ls": ls_tool,
     "read": read_tool,
@@ -58,9 +60,11 @@ def create_coding_agent(
     enabled_tools_config = get_config_section(["tools", "enabled"])
     if enabled_tools_config is not None and isinstance(enabled_tools_config, list):
         tools = [TOOL_MAP[name] for name in enabled_tools_config if name in TOOL_MAP]
-        # Add todo_write_tool if not enabled
+        # Add todo_write_tool and get_today_date_tool if not enabled
         if "todo_write" not in enabled_tools_config:
             tools.append(todo_write_tool)
+        if "get_today_date" not in enabled_tools_config:
+            tools.append(get_today_date_tool)
     else:
         tools = [
             bash_tool,
@@ -68,6 +72,7 @@ def create_coding_agent(
             grep_tool,
             ls_tool,
             read_tool,
+            get_today_date_tool,
             todo_write_tool,
             tree_tool,
             web_crawl_tool,
