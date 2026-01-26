@@ -3,7 +3,7 @@ from typing import Optional
 
 import yaml
 
-from mini_opencode.skills.types import Skill
+from .types import Skill
 
 
 def parse_skill(skill_dir: Path) -> Optional[Skill]:

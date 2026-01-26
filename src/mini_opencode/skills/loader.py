@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from mini_opencode.skills.parser import parse_skill
-from mini_opencode.skills.types import Skill
+from .parser import parse_skill
+from .types import Skill
 
 
 def load_skills(skills_dir: Path) -> list[Skill]:

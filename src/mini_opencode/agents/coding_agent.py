@@ -10,7 +10,7 @@ from mini_opencode import project
 from mini_opencode.config import get_config_section
 from mini_opencode.models import init_chat_model
 from mini_opencode.prompts import apply_prompt_template
-from mini_opencode.skills.loader import load_skills
+from mini_opencode.skills import load_skills
 from mini_opencode.tools import (
     bash_tool,
     edit_tool,
