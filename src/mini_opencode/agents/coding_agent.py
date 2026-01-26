@@ -83,8 +83,7 @@ def create_coding_agent(
         ]
 
     # Initialize system prompt
-    package_root = Path(__file__).parent.parent.parent.parent
-    skills_dir = package_root / "skills"
+    skills_dir = Path(project.root_dir) / "skills"
     skills = load_skills(skills_dir)
     skills_list_str = "\n".join(
         [f"- {skill.name}: {skill.path}\n  {skill.description}" for skill in skills]
