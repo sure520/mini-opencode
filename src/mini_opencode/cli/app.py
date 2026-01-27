@@ -14,14 +14,21 @@ from textual import on, work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Vertical
-from textual.widgets import Footer, Header, TabbedContent, TabPane
+from textual.widgets import Footer, Header, TabbedContent, TabPane, TextArea
 
 from mini_opencode import project
 from mini_opencode.agents import create_coding_agent
 from mini_opencode.cli.components import MessageListView
 from mini_opencode.tools import load_mcp_tools
 
-from .components import ChatInput, ChatView, EditorTabs, TerminalView, TodoListView
+from .components import (
+    ChatInput,
+    ChatView,
+    EditorTabs,
+    SuggestionView,
+    TerminalView,
+    TodoListView,
+)
 from .history import HistoryManager
 from .theme import DARK_THEME, LIGHT_THEME, is_dark_mode
 
@@ -34,6 +41,7 @@ class ConsoleApp(App):
     BINDINGS = [
         Binding("ctrl+c", "quit", "Quit", show=False),
     ]
+    SLASH_COMMANDS = ["/clear", "/resume", "/exit", "/quit"]
     CSS = """
     Screen {
         layout: horizontal;
@@ -103,6 +111,7 @@ class ConsoleApp(App):
             yield EditorTabs(id="editor-tabs")
             with TabbedContent(id="bottom-right-tabs"):
                 with TabPane(id="terminal-tab", title="Terminal"):
+                    yield SuggestionView(id="suggestion-view")
                     yield TerminalView(id="terminal-view")
                 with TabPane(id="todo-tab", title="To-do"):
                     yield TodoListView(id="todo-list-view")
@@ -167,12 +176,116 @@ class ConsoleApp(App):
         if not self.is_generating:
             user_input = event.value.strip()
             if user_input:
+                # Clear suggestions when submitting
+                suggestion_view = self.query_one("#suggestion-view", SuggestionView)
+                suggestion_view.set_suggestions([])
+                chat_view = self.query_one("#chat-view", ChatView)
+                chat_input = chat_view.query_one("#chat-input", ChatInput)
+                chat_input.suggestions_active = False
+
                 if user_input.startswith("/"):
                     self._handle_slash_command(user_input)
                     return
 
                 user_message = HumanMessage(content=user_input)
                 self._handle_user_input(user_message)
+
+    @on(TextArea.Changed)
+    def on_input_changed(self, event: TextArea.Changed) -> None:
+        if event.text_area.id != "chat-input":
+            return
+
+        text = event.text_area.text
+        suggestion_view = self.query_one("#suggestion-view", SuggestionView)
+        chat_input = event.text_area
+
+        # Only show suggestions if text starts with / and has no spaces (first word)
+        if text.startswith("/") and " " not in text:
+            query = text.lower()
+            matches = [cmd for cmd in self.SLASH_COMMANDS if cmd.startswith(query)]
+            suggestion_view.set_suggestions(matches)
+            chat_input.suggestions_active = len(matches) > 0
+            if matches:
+                self.query_one(
+                    "#bottom-right-tabs", TabbedContent
+                ).active = "terminal-tab"
+        elif text.startswith("/resume "):
+            # Show session suggestions
+            sessions = self._history_manager.list_sessions()
+            if sessions:
+                # Format sessions for SuggestionView
+                session_suggestions = []
+                for s in sessions:
+                    display_text = (
+                        f"{s['id']} - {s['preview'][:30]}... ({s['timestamp']})"
+                    )
+                    session_suggestions.append(
+                        {"text": display_text, "value": s["id"], "type": "session"}
+                    )
+
+                suggestion_view.set_suggestions(session_suggestions)
+                chat_input.suggestions_active = True
+                self.query_one(
+                    "#bottom-right-tabs", TabbedContent
+                ).active = "terminal-tab"
+            else:
+                suggestion_view.set_suggestions([])
+                chat_input.suggestions_active = False
+                # Only show the "No sessions" message when exactly typing "/resume "
+                # to avoid spamming while typing filters
+                if text == "/resume ":
+                    terminal_view = self.query_one("#terminal-view", TerminalView)
+                    terminal_view.write("No sessions available to resume.\n")
+                    self.query_one(
+                        "#bottom-right-tabs", TabbedContent
+                    ).active = "terminal-tab"
+        else:
+            suggestion_view.set_suggestions([])
+            chat_input.suggestions_active = False
+
+    @on(ChatInput.NavigateSuggestion)
+    def on_navigate_suggestion(self, event: ChatInput.NavigateSuggestion) -> None:
+        suggestion_view = self.query_one("#suggestion-view", SuggestionView)
+        suggestion_view.move_selection(event.direction)
+
+    @on(ChatInput.SelectSuggestion)
+    def on_select_suggestion(self, event: ChatInput.SelectSuggestion) -> None:
+        suggestion_view = self.query_one("#suggestion-view", SuggestionView)
+        selected = suggestion_view.get_selected()
+        if selected:
+            chat_view = self.query_one("#chat-view", ChatView)
+            chat_input = chat_view.query_one("#chat-input", ChatInput)
+            value = selected["value"]
+            suggestion_type = selected.get("type")
+
+            if suggestion_type == "session":
+                # Execute resume with the session ID
+                self.run_worker(self._resume_session(value))
+                chat_input.text = ""
+            else:
+                # Normal slash command
+                chat_input.text = value
+                if value == "/resume":
+                    # Check if sessions exist before prompting
+                    sessions = self._history_manager.list_sessions()
+                    if not sessions:
+                        terminal_view = self.query_one("#terminal-view", TerminalView)
+                        terminal_view.write("No sessions available to resume.\n")
+                        self.query_one(
+                            "#bottom-right-tabs", TabbedContent
+                        ).active = "terminal-tab"
+                        chat_input.text = ""  # Clear instead of "/resume "
+                    else:
+                        # Add a space to trigger session suggestions
+                        chat_input.text = "/resume "
+                        chat_input.move_cursor((0, len(chat_input.text)))
+                else:
+                    self._handle_slash_command(value)
+                    chat_input.text = ""
+
+            chat_input.suggestions_active = False
+            suggestion_view.set_suggestions([])
+            chat_input.focus()
 
     async def action_quit(self) -> None:
         await self._save_current_history()

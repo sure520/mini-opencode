@@ -11,6 +11,15 @@ class ChatInput(TextArea):
             self.value = value
             super().__init__()
 
+    class NavigateSuggestion(Message):
+        def __init__(self, direction: int) -> None:
+            self.direction = direction
+            super().__init__()
+
+    class SelectSuggestion(Message):
+        def __init__(self) -> None:
+            super().__init__()
+
     DEFAULT_CSS = """
     ChatInput {
         dock: bottom;
@@ -38,11 +47,25 @@ class ChatInput(TextArea):
         super().__init__(*args, **kwargs)
         self.show_line_numbers = False
         self.soft_wrap = True
+        self.suggestions_active = False
 
     def on_key(self, event: events.Key) -> None:
         """Handle key presses for submit and newline."""
         if event.key == "enter":
-            self.action_submit()
+            if self.suggestions_active:
+                self.post_message(self.SelectSuggestion())
+                event.prevent_default()
+                event.stop()
+            else:
+                self.action_submit()
+                event.prevent_default()
+                event.stop()
+        elif event.key == "up" and self.suggestions_active:
+            self.post_message(self.NavigateSuggestion(-1))
+            event.prevent_default()
+            event.stop()
+        elif event.key == "down" and self.suggestions_active:
+            self.post_message(self.NavigateSuggestion(1))
             event.prevent_default()
             event.stop()
         elif event.key == "ctrl+j":
