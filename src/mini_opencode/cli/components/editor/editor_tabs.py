@@ -51,6 +51,14 @@ class EditorTabs(TabbedContent):
         for code_view in self.query(CodeView):
             code_view.update_code(code_view.code, code_view.file_path)
 
+    def clear_tabs(self) -> None:
+        """Clear all tabs except welcome"""
+        self.tab_map = {}
+        for pane in list(self.query(TabPane)):
+            if pane.id != "welcome-tab":
+                self.remove_pane(pane.id)
+        self.active = "welcome-tab"
+
 
 class EditorTab(TabPane):
     def __init__(self, path: str, **kwargs):

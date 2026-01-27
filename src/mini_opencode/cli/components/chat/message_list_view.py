@@ -86,3 +86,10 @@ class MessageListView(VerticalScroll):
             if isinstance(last_view, MessageItemView):
                 last_view.update_message(message, update_tools=update_tools)
         self.set_timer(0.1, self._scroll_to_bottom)
+
+    def clear(self) -> None:
+        """Clear all messages from the list"""
+        self.messages = []
+        message_list = self.query_one("#message-list", Vertical)
+        for child in list(message_list.children):
+            child.remove()

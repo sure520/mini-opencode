@@ -26,3 +26,8 @@ class TerminalView(VerticalScroll):
         item = Static(text, classes=f"{'muted' if muted else ''}")
         self.mount(item)
         self.scroll_end(animate=True)
+
+    def clear(self) -> None:
+        """Clear all output from terminal"""
+        for child in list(self.children):
+            child.remove()
