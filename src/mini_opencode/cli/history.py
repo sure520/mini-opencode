@@ -26,7 +26,10 @@ class HistoryManager:
             self.history_dir.mkdir(parents=True, exist_ok=True)
 
     def save_session(
-        self, messages: list[BaseMessage], session_id: str | None = None
+        self,
+        messages: list[BaseMessage],
+        session_id: str | None = None,
+        project_root: str | Path | None = None,
     ) -> str:
         if not session_id:
             session_id = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -38,6 +41,7 @@ class HistoryManager:
         full_data = {
             "session_id": session_id,
             "timestamp": datetime.datetime.now().isoformat(),
+            "project_root": str(project_root) if project_root else None,
             "messages": data,
         }
 
@@ -45,15 +49,25 @@ class HistoryManager:
             json.dump(full_data, f, ensure_ascii=False, indent=2)
         return str(filepath)
 
-    def list_sessions(self) -> list[dict]:
+    def list_sessions(self, project_root: str | Path | None = None) -> list[dict]:
         sessions = []
         if not self.history_dir.exists():
             return []
+
+        target_root = str(Path(project_root).resolve()) if project_root else None
 
         for p in self.history_dir.glob("*.json"):
             try:
                 with open(p, "r", encoding="utf-8") as f:
                     data = json.load(f)
+
+                    if target_root:
+                        session_root = data.get("project_root")
+                        if not session_root:
+                            continue
+                        if str(Path(session_root).resolve()) != target_root:
+                            continue
+
                     sessions.append(
                         {
                             "id": p.stem,
