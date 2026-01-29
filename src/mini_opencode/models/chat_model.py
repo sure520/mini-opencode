@@ -43,7 +43,7 @@ def init_chat_model() -> BaseChatModel:
     rest_settings.pop("model", None)
     rest_settings.pop("api_key", None)
 
-    if model_type in ["deepseek", "doubao"]:
+    if model_type in ["deepseek", "kimi", "doubao"]:
         return ChatDeepSeek(model=model_name, api_key=api_key, **rest_settings)
 
     # Default to OpenAI for other types or if type is not specified

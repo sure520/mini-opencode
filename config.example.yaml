@@ -9,8 +9,17 @@ models:
     max_tokens: 8192
     timeout: 60
     max_retries: 3
+    # type: kimi
+    # model: 'kimi-k2.5'
+    # api_base: 'https://api.moonshot.cn/v1'
+    # api_key: $KIMI_API_KEY
+    # temperature: 1
+    # top_p: 0.95
+    # max_tokens: 8192
+    # timeout: 60
+    # max_retries: 3
     # type: doubao
-    # model: 'doubao-seed-1-6-250615'
+    # model: 'doubao-seed-1-8-251228'
     # api_base: 'https://ark.cn-beijing.volces.com/api/v3'
     # api_key: $ARK_API_KEY
     # temperature: 0
