@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from textual.app import App
 from textual.widgets import TabbedContent
 
@@ -48,9 +50,9 @@ class SuggestionController:
                 # Format sessions for SuggestionView
                 session_suggestions = []
                 for s in sessions:
-                    display_text = (
-                        f"{s['id']} - {s['preview'][:30]}... ({s['timestamp']})"
-                    )
+                    dt = datetime.fromisoformat(s["timestamp"])
+                    timestamp = dt.strftime("%Y-%m-%d %H:%M")
+                    display_text = f"{timestamp} - {s['preview'][:30]}..."
                     session_suggestions.append(
                         {"text": display_text, "value": s["id"], "type": "session"}
                     )

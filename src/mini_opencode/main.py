@@ -17,12 +17,15 @@ def main() -> None:
     """
     if len(sys.argv) > 1:
         new_root = Path(sys.argv[1])
-        try:
-            project.root_dir = new_root
-            print(f"Project root set to: {project.root_dir}")
-        except (FileNotFoundError, NotADirectoryError) as e:
-            print(f"Error: {e}", file=sys.stderr)
-            sys.exit(1)
+    else:
+        new_root = Path.cwd()
 
-        app = ConsoleApp()
-        app.run()
+    try:
+        project.root_dir = new_root
+        print(f"Project root set to: {project.root_dir}")
+    except (FileNotFoundError, NotADirectoryError) as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    app = ConsoleApp()
+    app.run()
