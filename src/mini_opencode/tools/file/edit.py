@@ -7,7 +7,7 @@ from mini_opencode.tools.reminders import generate_reminders
 from .text_editor import TextEditor
 
 
-@tool("edit", parse_docstring=True)
+@tool("edit")
 def edit_tool(
     runtime: ToolRuntime,
     path: str,

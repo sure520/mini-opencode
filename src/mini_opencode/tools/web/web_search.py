@@ -10,7 +10,7 @@ warnings.filterwarnings("ignore", category=UserWarning, module="langchain_tavily
 from langchain_tavily import TavilySearch  # noqa: E402
 
 
-@tool("web_search", parse_docstring=True)
+@tool("web_search")
 def web_search_tool(query: str, max_results: int = 5) -> str:
     """
     Search the web for the given query using Tavily.

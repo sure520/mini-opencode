@@ -26,3 +26,9 @@ config.yaml
 
 # Env
 .env
+
+# Logs
+logs/*
+
+# tests
+tests/
