@@ -6,6 +6,8 @@
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![Code Style: Google](https://img.shields.io/badge/code%20style-google-3666d6.svg)](https://google.github.io/styleguide/pyguide.html)
 
+[简体中文](./README.zh-CN.md)
+
 **mini-OpenCode** is a lightweight, experimental AI Coding Agent inspired by [Deer-Code](https://github.com/MagicCube/deer-code) and [OpenCode](https://github.com/anomalyco/opencode). It demonstrates how Large Language Models (LLMs) can plan, reason, and iteratively write code with minimal infrastructure. Built on [LangGraph](https://github.com/langchain-ai/langgraph), it serves as a hackable foundation for understanding and building agentic coding systems.
 
 <br/>
@@ -20,13 +22,13 @@
 ## ✨ Features
 
 - **🤖 Intelligent Coding Agent**: Leverages LangGraph for stateful, multi-step reasoning and execution.
-- **🛠️ Comprehensive Toolset**: Includes tools for file operations (`read`, `write`, `edit`), filesystem navigation (`ls`, `tree`, `grep`), terminal commands (`bash`), web search (`tavily`), and web crawling (`firecrawl`).
 - **📝 Context-Aware Task Management**: Built-in TODO system to track progress on complex, multi-step tasks.
-- **🚀 Agent Skills System**: Dynamically loads specialized instructions, scripts, and resources (Skills) to improve performance on specific tasks (e.g., frontend design).
-- **⚙️ Highly Configurable**: flexible YAML-based configuration for models, tools, and API keys.
+- **🛠️ Comprehensive Toolset**: Includes tools for file operations (`read`, `write`, `edit`), filesystem navigation (`ls`, `tree`, `grep`), terminal commands (`bash`), web search (`tavily`), and web crawling (`firecrawl`).
 - **🔌 Extensible Architecture**: Supports [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) for integrating external tools and servers.
+- **🚀 Agent Skills System**: Dynamically loads specialized instructions, scripts, and resources (Skills) to improve performance on specific tasks (e.g., frontend design).
 - **🎨 Interactive UI**: Features a clean terminal-based interface using [Textual](https://github.com/Textualize/textual), with support for automatic dark/light mode switching and streaming model responses.
-- **⚡ Slash Commands**: Quickly access features with commands like `/clear` to reset chat, `/resume` to restore sessions, and `/exit` to quit, complete with auto-suggestions.
+- **⚡️ Slash Commands**: Quickly access features with commands like `/clear` to reset chat, `/resume` to restore sessions, and `/exit` to quit, complete with auto-suggestions.
+- **⚙️ Highly Configurable**: flexible YAML-based configuration for models, tools, and API keys.
 - **🔒 Type Safe**: Fully typed codebase (Python 3.12+) ensuring reliability and developer experience.
 
 ## 📖 Table of Contents
@@ -75,6 +77,7 @@
     DEEPSEEK_API_KEY=your_key_here
     # Optional:
     ARK_API_KEY=your_doubao_key
+    KIMI_API_KEY=your_kimi_key
     TAVILY_API_KEY=your_tavily_key
     FIRECRAWL_API_KEY=your_firecrawl_key
     ```
