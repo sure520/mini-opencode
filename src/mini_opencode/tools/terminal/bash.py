@@ -13,7 +13,7 @@ terminal_lock = threading.Lock()
 keep_alive_terminal: BashTerminal | None = None
 
 
-@tool("bash", parse_docstring=True)
+@tool("bash")
 def bash_tool(
     runtime: ToolRuntime,
     command: str,
@@ -38,6 +38,9 @@ def bash_tool(
         command: The command to execute.
         reset_cwd: Whether to reset the current working directory to the project root directory.
         timeout: Maximum time to wait for the command to complete (in seconds). Default is 60.
+        
+    Returns:
+        str: The command output if successful, or error message if failed
     """
     global keep_alive_terminal
 

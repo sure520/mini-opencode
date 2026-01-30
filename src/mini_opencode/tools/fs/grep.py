@@ -8,7 +8,7 @@ from mini_opencode.tools.reminders import generate_reminders
 from .ignore import DEFAULT_IGNORE_PATTERNS
 
 
-@tool("grep", parse_docstring=True)
+@tool("grep")
 def grep_tool(
     runtime: ToolRuntime,
     pattern: str,

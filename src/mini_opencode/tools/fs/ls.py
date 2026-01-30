@@ -8,7 +8,7 @@ from mini_opencode.tools.reminders import generate_reminders
 from .ignore import DEFAULT_IGNORE_PATTERNS
 
 
-@tool("ls", parse_docstring=True)
+@tool("ls")
 def ls_tool(
     runtime: ToolRuntime,
     path: str,

@@ -107,7 +107,7 @@ def generate_tree(
     return lines, dir_count, file_count
 
 
-@tool("tree", parse_docstring=True)
+@tool("tree")
 def tree_tool(
     runtime: ToolRuntime,
     path: str | None = None,

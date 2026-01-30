@@ -7,7 +7,7 @@ from langgraph.graph.state import Command
 from .types import TodoItem, TodoStatus
 
 
-@tool("todo_write", parse_docstring=True)
+@tool("todo_write")
 def todo_write_tool(
     todos: list[TodoItem], tool_call_id: Annotated[str, InjectedToolCallId]
 ) -> Command:
