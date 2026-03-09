@@ -5,6 +5,7 @@ from .mcp import load_mcp_tools
 from .terminal import bash_tool
 from .todo import todo_write_tool
 from .web import web_crawl_tool, web_search_tool
+from .template import template
 
 __all__ = [
     "todo_write_tool",
@@ -19,4 +20,5 @@ __all__ = [
     "bash_tool",
     "web_crawl_tool",
     "web_search_tool",
+    "template",
 ]
