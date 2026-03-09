@@ -1,6 +1,11 @@
 from pathlib import Path
 from typing import Literal
 
+from mini_opencode.cache.file_cache import file_cache
+from mini_opencode.logging_config import get_logger
+
+logger = get_logger(__name__)
+
 TextEditorCommand = Literal[
     "read",
     "write",
@@ -16,18 +21,40 @@ class TextEditor:
     """
 
     def validate_path(self, path: Path):
-        """Check that the path is absolute.
+        """Validate the path for security and correctness.
 
         Args:
             path: The path to the file or directory.
 
         Raises:
-            ValueError: If path is not absolute.
+            ValueError: If path is not absolute, contains directory traversal, or is outside allowed directories.
         """
+        # Check that the path is absolute
         if not path.is_absolute():
             suggested_path = Path.cwd().resolve() / path
             raise ValueError(
                 f"The path {path} is not an absolute path, it should start with `/`. Do you mean {suggested_path}?"
+            )
+
+        # Prevent directory traversal attacks
+        try:
+            resolved_path = path.resolve()
+        except Exception as e:
+            raise ValueError(f"Invalid path: {path}. Error: {e}")
+
+        # Check for directory traversal
+        path_str = str(path)
+        if '..' in path_str or resolved_path != path:
+            raise ValueError(
+                f"Path contains directory traversal attempts: {path}"
+            )
+
+        # Path whitelist - only allow paths within the current working directory
+        # This prevents access to system files and sensitive directories
+        cwd = Path.cwd().resolve()
+        if not resolved_path.is_relative_to(cwd):
+            raise ValueError(
+                f"Path {path} is outside the allowed directory: {cwd}"
             )
 
     def read(self, path: Path, read_range: list[int] | None = None) -> str:
@@ -140,11 +167,12 @@ class TextEditor:
 
         return occurrences
 
-    def read_file(self, path: Path) -> str:
-        """Read the raw content of a file.
+    def read_file(self, path: Path, chunk_size: int = 8192) -> str:
+        """Read the raw content of a file with streaming support for large files.
 
         Args:
             path: The path to the file to read.
+            chunk_size: The size of each chunk to read (default: 8192 bytes).
 
         Returns:
             str: The raw file content.
@@ -152,9 +180,44 @@ class TextEditor:
         Raises:
             ValueError: If the file cannot be read.
         """
+        logger.info("Reading file", path=str(path))
+        
+        # 尝试从缓存获取
+        cached_content = file_cache.get(str(path))
+        if cached_content:
+            logger.debug("Cache hit for file", path=str(path))
+            return cached_content
+        
         try:
-            return path.read_text(encoding="utf-8")
+            # 检查文件大小
+            file_size = path.stat().st_size
+            logger.debug("File size", path=str(path), size=file_size)
+            
+            # 对于小文件，直接读取
+            if file_size < 1024 * 1024:  # 小于1MB
+                logger.debug("Reading small file directly", path=str(path))
+                content = path.read_text(encoding="utf-8")
+            else:
+                # 对于大文件，使用流式读取
+                logger.debug("Reading large file with streaming", path=str(path))
+                content = []
+                with open(path, 'r', encoding="utf-8") as f:
+                    while True:
+                        chunk = f.read(chunk_size)
+                        if not chunk:
+                            break
+                        content.append(chunk)
+                content = ''.join(content)
+            
+            # 更新缓存（仅缓存小文件，避免内存占用过大）
+            if file_size < 1024 * 1024:  # 小于1MB
+                logger.debug("Caching file content", path=str(path))
+                file_cache.set(str(path), content)
+            
+            logger.info("File read successfully", path=str(path), size=file_size)
+            return content
         except Exception as e:
+            logger.error("Error reading file", path=str(path), error=str(e))
             raise ValueError(f"Error reading {path}: {e}")
 
     def write_file(self, path: Path, content: str) -> None:
@@ -167,10 +230,22 @@ class TextEditor:
         Raises:
             ValueError: If the file cannot be written.
         """
+        logger.info("Writing file", path=str(path), content_length=len(content))
+        
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
+            logger.debug("Created parent directories", path=str(path.parent))
+            
             path.write_text(content, encoding="utf-8")
+            logger.debug("Written content to file", path=str(path))
+            
+            # 清除缓存，确保下次读取时获取最新内容
+            file_cache.clear(str(path))
+            logger.debug("Cleared file cache", path=str(path))
+            
+            logger.info("File written successfully", path=str(path))
         except Exception as e:
+            logger.error("Error writing file", path=str(path), error=str(e))
             raise ValueError(f"Error writing to {path}: {e}")
 
     def _content_with_line_numbers(

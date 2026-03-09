@@ -1,4 +1,5 @@
 import threading
+import re
 
 from langchain.tools import ToolRuntime, tool
 
@@ -11,6 +12,43 @@ from .bash_terminal import BashTerminal
 # In a multi-user environment, this should ideally be stored in a session-specific context
 terminal_lock = threading.Lock()
 keep_alive_terminal: BashTerminal | None = None
+
+# Dangerous command patterns that should be blocked
+DANGEROUS_PATTERNS = [
+    r"rm\s+-rf\s+/",           # 删除根目录
+    r"mkfs\.\w+",              # 格式化文件系统
+    r"dd\s+if=.*of=/dev",      # 直接写入设备
+    r">\s*/dev/sda",           # 覆盖硬盘
+    r":\(\)\{\s*:\|:&\s*\};:", # Fork 炸弹
+    r"rm\s+-rf\s+\.",          # 删除当前目录
+    r"chmod\s+777\s+/",        # 给根目录设置危险权限
+    r"shutdown\s*-h\s+now",     # 立即关机
+    r"reboot",                  # 重启系统
+    r"poweroff",                # 关机
+]
+
+# Allowed commands (white list)
+ALLOWED_COMMANDS = [
+    "ls", "cd", "mkdir", "rmdir", "touch", "cp", "mv", "cat",
+    "git", "python", "pip", "uv", "make", "npm", "yarn", "pnpm",
+    "echo", "grep", "find", "head", "tail", "wc", "sort", "uniq",
+    "tar", "zip", "unzip", "curl", "wget", "ping", "ps", "top",
+]
+
+
+def is_dangerous_command(command: str) -> bool:
+    """Check if a command is dangerous."""
+    for pattern in DANGEROUS_PATTERNS:
+        if re.search(pattern, command, re.IGNORECASE):
+            return True
+    return False
+
+
+def is_allowed_command(command: str) -> bool:
+    """Check if a command is allowed."""
+    # Extract the main command
+    main_command = command.split()[0] if command.strip() else ""
+    return main_command in ALLOWED_COMMANDS
 
 
 @tool("bash")
@@ -45,6 +83,19 @@ def bash_tool(
     global keep_alive_terminal
 
     reminders = generate_reminders(runtime)
+
+    # Security checks
+    command = command.strip()
+    if not command:
+        return f"Error: Empty command.{reminders}"
+
+    # Check for dangerous commands
+    if is_dangerous_command(command):
+        return f"Error: Command blocked for security reasons. This command could cause system damage.{reminders}"
+
+    # Check if command is allowed
+    if not is_allowed_command(command):
+        return f"Error: Command not allowed. Only basic file operations, package management, and development commands are permitted.{reminders}"
 
     with terminal_lock:
         try:

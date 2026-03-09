@@ -1,0 +1,16 @@
+.{{component-name}} {
+  padding: 1rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  background-color: #f9f9f9;
+}
+
+.{{component-name}} h2 {
+  margin-top: 0;
+  color: #333;
+}
+
+.{{component-name}} p {
+  color: #666;
+  line-height: 1.5;
+}
