@@ -30,6 +30,10 @@
 - **⚡️ Slash Commands**: Quickly access features with commands like `/clear` to reset chat, `/resume` to restore sessions, and `/exit` to quit, complete with auto-suggestions.
 - **⚙️ Highly Configurable**: flexible YAML-based configuration for models, tools, and API keys.
 - **🔒 Type Safe**: Fully typed codebase (Python 3.12+) ensuring reliability and developer experience.
+- **⚡ Performance Optimized**: Built-in file caching with LRU strategy and intelligent large file streaming processing.
+- **📋 Code Templates**: Smart template system with code generators for rapid scaffolding (FastAPI CRUD, Python API, React components).
+- **🧪 Testing Framework**: Integrated pytest with comprehensive unit tests for core modules.
+- **📊 Structured Logging**: Advanced logging with structlog for better debugging and monitoring.
 
 ## 📖 Table of Contents
 
@@ -124,15 +128,20 @@ mini-opencode/
 │   ├── prompts/          # Prompt templates (Jinja2)
 │   ├── skills/           # Skills system implementation (loader, parser, types)
 │   ├── tools/            # Tool implementations
-│   │   ├── file/         # File I/O (read, write, edit)
+│   │   ├── file/         # File I/O (read, write, edit) with caching & streaming
 │   │   ├── fs/           # File system (ls, tree, grep)
 │   │   ├── terminal/     # Bash execution
 │   │   ├── web/          # Search & Crawl
 │   │   ├── mcp/          # MCP tools integration
-│   │   └── todo/         # Task management
+│   │   ├── todo/         # Task management
+│   │   └── template/     # Code template generators (FastAPI CRUD, etc.)
+│   ├── cache/            # File and tool cache with LRU strategy
+│   ├── logging_config.py # Structured logging configuration
 │   ├── main.py           # CLI entry point
 │   └── project.py        # Project context manager
 ├── skills/               # Agent Skills (instructions, scripts, and references)
+├── tests/                # Unit tests (pytest)
+│   └── unit/             # Unit tests for core modules
 ├── AGENTS.md             # Developer guide for agents
 ├── Makefile              # Build & run commands
 ├── config.example.yaml   # Template configuration

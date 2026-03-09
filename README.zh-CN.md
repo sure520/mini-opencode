@@ -30,6 +30,10 @@
 - **⚡️ 斜杠命令**：通过 `/clear`（重置聊天）、`/resume`（恢复会话）和 `/exit`（退出）等命令快速访问功能，支持自动补全建议。
 - **⚙️ 高度可配置**：灵活的 YAML 配置文件，支持自定义模型参数、工具及 API 密钥。
 - **🔒 类型安全**：全量类型提示（Python 3.12+），确保代码可靠性及开发体验。
+- **⚡ 性能优化**：内置文件缓存（LRU 策略）和智能大文件流式处理。
+- **📋 代码模板**：智能模板系统，提供代码生成器用于快速搭建项目（FastAPI CRUD、Python API、React 组件）。
+- **🧪 测试框架**：集成 pytest，为核心模块提供全面的单元测试。
+- **📊 结构化日志**：使用 structlog 实现高级日志记录，便于调试和监控。
 
 ## 📖 目录
 
@@ -124,15 +128,20 @@ mini-opencode/
 │   ├── prompts/          # 提示词模板 (Jinja2)
 │   ├── skills/           # 技能系统实现（加载器、解析器、类型）
 │   ├── tools/            # 工具实现
-│   │   ├── file/         # 文件 I/O (read, write, edit)
+│   │   ├── file/         # 文件 I/O (read, write, edit)，支持缓存和流式处理
 │   │   ├── fs/           # 文件系统 (ls, tree, grep)
 │   │   ├── terminal/     # Bash 执行
 │   │   ├── web/          # 搜索与爬取
 │   │   ├── mcp/          # MCP 工具集成
-│   │   └── todo/         # 任务管理
+│   │   ├── todo/         # 任务管理
+│   │   └── template/     # 代码模板生成器（FastAPI CRUD 等）
+│   ├── cache/            # 文件和工具缓存，支持 LRU 策略
+│   ├── logging_config.py # 结构化日志配置
 │   ├── main.py           # CLI 入口
 │   └── project.py        # 项目上下文管理器
 ├── skills/               # 智能体技能（指令、脚本及参考资料）
+├── tests/                # 单元测试 (pytest)
+│   └── unit/             # 核心模块单元测试
 ├── AGENTS.md             # 智能体开发指南
 ├── Makefile              # 构建与运行命令
 ├── config.example.yaml   # 示例配置模板
