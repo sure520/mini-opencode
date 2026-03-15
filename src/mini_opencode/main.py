@@ -17,6 +17,8 @@ def main() -> None:
     """
     if len(sys.argv) > 1:
         new_root = Path(sys.argv[1])
+        if not new_root.exists():
+            new_root.mkdir(parents=True, exist_ok=True)
     else:
         new_root = Path.cwd()
 

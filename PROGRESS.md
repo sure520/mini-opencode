@@ -225,6 +225,7 @@
 ## 九、参考文档
 
 - [mini-OpenCode 改进建议系统性评估报告](./mini-OpenCode 改进建议系统性评估报告.md)
+- [mini-OpenCode 第二阶段系统性改进报告](./docs/mini-OpenCode 第二阶段系统性改进报告.md)
 - [Ruff 官方文档](https://docs.astral.sh/ruff/)
 - [Mypy 官方文档](https://mypy.readthedocs.io/)
 - [项目架构文档](./AGENTS.md)
