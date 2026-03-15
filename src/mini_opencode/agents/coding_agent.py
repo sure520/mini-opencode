@@ -1,9 +1,9 @@
 import os
 from pathlib import Path
+from typing import Any
 
 from langchain.agents import create_agent
 from langchain.tools import BaseTool
-from langgraph.checkpoint.base import RunnableConfig
 from langgraph.checkpoint.memory import MemorySaver
 
 from mini_opencode import project
@@ -103,13 +103,13 @@ def create_coding_agent(
             *plugin_tools,
         ],
         system_prompt=system_prompt,
-        state_schema=CodingAgentState,
+        state_schema=CodingAgentState,  # type: ignore
         checkpointer=checkpointer,
         name="coding_agent",
         **kwargs,
     )
 
 
-def create_coding_agent_for_debug(config: RunnableConfig):
+def create_coding_agent_for_debug(config: dict[str, Any]):
     project.root_dir = os.getenv("PROJECT_ROOT", os.getcwd())
     return create_coding_agent(debug=True)

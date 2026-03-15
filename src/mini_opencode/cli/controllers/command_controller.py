@@ -1,3 +1,4 @@
+from typing import Any
 from langchain.messages import AIMessage
 from textual.app import App
 
@@ -18,7 +19,7 @@ class CommandController:
 
     SLASH_COMMANDS = ["/clear", "/resume", "/exit", "/quit"]
 
-    def __init__(self, app: "App", agent_controller: AgentController):
+    def __init__(self, app: "App[Any]", agent_controller: AgentController):
         self.app = app
         self.agent_controller = agent_controller
         self.history_manager = agent_controller.history_manager
@@ -76,7 +77,7 @@ class CommandController:
         try:
             idx = int(args[0])
             if 0 <= idx < len(sessions):
-                session_id = sessions[idx]["id"]
+                session_id = str(sessions[idx]["id"])
                 self.app.run_worker(self.resume_session(session_id))
             else:
                 terminal_view.write(f"Invalid session index: {idx}\n")
@@ -92,13 +93,13 @@ class CommandController:
             await self.agent_controller.save_current_history()
 
             messages = self.history_manager.load_session(session_id)
-            await self.agent_controller.load_session(session_id, messages)
+            await self.agent_controller.load_session(session_id, messages)  # type: ignore
 
             self.clear_ui()
             chat_view = self.app.query_one("#chat-view", ChatView)
             # MessageListView.clear already handles messages, we just need to add them back
             for msg in messages:
-                chat_view.add_message(msg)
+                chat_view.add_message(msg)  # type: ignore
 
             terminal_view = self.app.query_one("#terminal-view", TerminalView)
             terminal_view.write(f"Resumed session: {session_id}\n")

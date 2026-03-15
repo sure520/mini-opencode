@@ -24,12 +24,12 @@ class CodeView(ScrollableContainer):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.code = "# Welcome to mini-OpenCode\n# Code will be displayed here\n\ndef hello_world():\n    print('Hello, World!')"
-        self.file_path = None
+        self.file_path: str | None = None
 
     def compose(self) -> ComposeResult:
         yield Static(id="code-content")
 
-    def update_code(self, code: str, file_path: str = None) -> None:
+    def update_code(self, code: str, file_path: str | None = None) -> None:
         """Update code content and optionally the file path"""
         self.code = code
         self.file_path = file_path

@@ -1,6 +1,6 @@
 """Message service for handling message-related operations."""
 
-from typing import List, Dict, Any, Optional
+from typing import List
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
 
 

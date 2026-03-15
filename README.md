@@ -34,6 +34,9 @@
 - **📋 Code Templates**: Smart template system with code generators for rapid scaffolding (FastAPI CRUD, Python API, React components).
 - **🧪 Testing Framework**: Integrated pytest with comprehensive unit tests for core modules.
 - **📊 Structured Logging**: Advanced logging with structlog for better debugging and monitoring.
+- **📈 Dependency Analysis**: Built-in dependency analysis tool to visualize project dependencies.
+- **⏱️ Performance Monitoring**: Performance monitoring tool for tracking and optimizing agent performance.
+- **🔍 Configuration Validation**: Configuration validation and migration support for better reliability.
 
 ## 📖 Table of Contents
 

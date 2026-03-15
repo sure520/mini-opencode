@@ -1,7 +1,7 @@
 """Agent service for handling agent-related business logic."""
 
-from typing import List, Dict, Any, Optional
-from langgraph.graph.state import MessagesState
+from typing import List, Dict, Any
+from langgraph.graph import MessagesState
 from langchain_core.messages import BaseMessage
 
 
@@ -49,4 +49,4 @@ class AgentService:
         Returns:
             bool: True if state is valid, False otherwise.
         """
-        return isinstance(state, MessagesState) and hasattr(state, "messages")
+        return hasattr(state, "messages")

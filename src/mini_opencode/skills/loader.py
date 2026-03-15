@@ -13,7 +13,7 @@ def load_skills(skills_dir: Path) -> list[Skill]:
     Returns:
         A list of Skill objects.
     """
-    skills = []
+    skills: list[Skill] = []
     if not skills_dir.exists() or not skills_dir.is_dir():
         return skills
 

@@ -14,7 +14,7 @@ class TodoListView(Static):
     def on_mount(self) -> None:
         self.update("(No TODO found)")
 
-    def update_items(self, items: list[dict]):
+    def update_items(self, items: list[dict[str, str]]):
         if not items:
             self.update("(No TODO found)")
             return

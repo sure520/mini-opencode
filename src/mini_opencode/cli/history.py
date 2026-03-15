@@ -2,6 +2,7 @@ import datetime
 import json
 import os
 from pathlib import Path
+from typing import Any
 
 from langchain_core.messages import (
     BaseMessage,
@@ -49,7 +50,7 @@ class HistoryManager:
             json.dump(full_data, f, ensure_ascii=False, indent=2)
         return str(filepath)
 
-    def list_sessions(self, project_root: str | Path | None = None) -> list[dict]:
+    def list_sessions(self, project_root: str | Path | None = None) -> list[dict[str, str | float]]:
         sessions = []
         if not self.history_dir.exists():
             return []
@@ -96,12 +97,12 @@ class HistoryManager:
         messages_data = data.get("messages", [])
         return messages_from_dict(messages_data)
 
-    def _get_preview(self, messages: list[dict]) -> str:
+    def _get_preview(self, messages: list[dict[str, Any]]) -> str:
         for msg in messages:
             if msg.get("type") == "human":
                 content = msg.get("data", {}).get("content", "")
                 if isinstance(content, list):
                     # Handle multimodal content if any
                     content = str(content)
-                return (content[:50] + "...") if len(content) > 50 else content
+                return (content[:50] + "...") if len(content) > 50 else str(content)
         return "No human message"

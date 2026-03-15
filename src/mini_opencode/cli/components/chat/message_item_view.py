@@ -65,7 +65,10 @@ class MessageItemView(Static):
             if header:
                 yield Static(header, classes="message-header")
 
-        text_content = self.message.content.strip() if self.message.content else ""
+        if isinstance(self.message.content, str):
+            text_content = self.message.content.strip() if self.message.content else ""
+        else:
+            text_content = ""
         final_action = (
             isinstance(self.message, AIMessage)
             and text_content != ""
@@ -92,7 +95,10 @@ class MessageItemView(Static):
         if not isinstance(self.message, AIMessage) or not self.message.tool_calls:
             return
 
-        text_content = self.message.content.strip() if self.message.content else ""
+        if isinstance(self.message.content, str):
+            text_content = self.message.content.strip() if self.message.content else ""
+        else:
+            text_content = ""
         for tool_call in self.message.tool_calls:
             margin_top = 0
             if text_content and tool_call == self.message.tool_calls[0]:
@@ -105,7 +111,10 @@ class MessageItemView(Static):
     def update_message(self, message: AnyMessage, update_tools: bool = True) -> None:
         """Update the message and its visual representation"""
         self.message = message
-        text_content = self.message.content.strip() if self.message.content else ""
+        if isinstance(self.message.content, str):
+            text_content = self.message.content.strip() if self.message.content else ""
+        else:
+            text_content = ""
 
         try:
             markdown = self.query_one("#markdown", Markdown)

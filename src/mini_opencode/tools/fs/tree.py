@@ -50,7 +50,7 @@ def generate_tree(
     if ignore_patterns is None:
         ignore_patterns = []
 
-    lines = []
+    lines: list[str] = []
     dir_count = 0
     file_count = 0
 

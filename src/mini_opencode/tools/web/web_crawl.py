@@ -1,4 +1,4 @@
-from firecrawl import FirecrawlApp
+from firecrawl import FirecrawlApp  # type: ignore
 from langchain.tools import tool
 
 from mini_opencode.config import get_config_section
@@ -30,4 +30,4 @@ def web_crawl_tool(url: str) -> str:
 
     firecrawl = FirecrawlApp(api_key=api_key)
     response = firecrawl.scrape(url=url, formats=["markdown"], only_main_content=True)
-    return response.markdown
+    return str(response.markdown)

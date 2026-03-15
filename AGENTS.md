@@ -35,8 +35,9 @@ mini-OpenCode follows strict Python coding standards to ensure reliability and m
 - **Imports**: Organized as: (1) Standard library, (2) Third-party, (3) Local `mini_opencode` modules.
 
 ## 4. Testing
-- **Framework**: Currently, no formal test framework (like pytest) is configured in the repository.
-- **Validation**: Developers are encouraged to perform manual validation via the CLI and use LangGraph Studio (`make dev`) for tracing and debugging agent logic.
+- **Framework**: pytest is configured with pytest-asyncio and pytest-cov for comprehensive testing.
+- **Coverage**: Core modules have complete unit tests, including text editor and cache modules.
+- **Validation**: Developers can run tests with `pytest` and use LangGraph Studio (`make dev`) for tracing and debugging agent logic.
 
 ## 5. Security
 - **Credential Management**: API keys and sensitive tokens must be stored in a `.env` file or environment variables, never hardcoded.

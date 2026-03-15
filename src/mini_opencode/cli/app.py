@@ -1,4 +1,5 @@
 import asyncio
+from typing import Any
 
 from langchain.messages import HumanMessage
 from textual import on
@@ -24,7 +25,7 @@ from mini_opencode.cli.controllers import (
 from mini_opencode.cli.theme import DARK_THEME, LIGHT_THEME, is_dark_mode
 
 
-class ConsoleApp(App):
+class ConsoleApp(App[Any]):
     """The main application for mini-OpenCode."""
 
     TITLE = "mini-OpenCode"
@@ -118,7 +119,7 @@ class ConsoleApp(App):
         self.register_theme(DARK_THEME)
         self.register_theme(LIGHT_THEME)
         self.theme = "dark" if is_dark_mode() else "light"
-        self.sub_title = project.root_dir
+        self.sub_title = str(project.root_dir)
         self.is_generating = True
         editor_tabs = self.query_one("#editor-tabs", EditorTabs)
         editor_tabs.open_welcome()

@@ -71,7 +71,7 @@ class BashTerminal:
 
         # Clean output: remove command echo if it exists
         # In some environments, even with echo=False, command may still echo
-        lines = output.splitlines()
+        lines = output.splitlines() if output else []
 
         # Remove echoed command lines from the beginning of the output
         # If echo is on, the shell will echo the wrapped command block

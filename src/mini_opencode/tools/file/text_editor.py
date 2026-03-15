@@ -181,18 +181,18 @@ class TextEditor:
             ValueError: If the file cannot be read.
         """
         logger.info("Reading file", path=str(path))
-        
+
         # 尝试从缓存获取
         cached_content = file_cache.get(str(path))
         if cached_content:
             logger.debug("Cache hit for file", path=str(path))
             return cached_content
-        
+
         try:
             # 检查文件大小
             file_size = path.stat().st_size
             logger.debug("File size", path=str(path), size=file_size)
-            
+
             # 对于小文件，直接读取
             if file_size < 1024 * 1024:  # 小于1MB
                 logger.debug("Reading small file directly", path=str(path))
@@ -200,20 +200,20 @@ class TextEditor:
             else:
                 # 对于大文件，使用流式读取
                 logger.debug("Reading large file with streaming", path=str(path))
-                content = []
+                content_chunks: list[str] = []
                 with open(path, 'r', encoding="utf-8") as f:
                     while True:
                         chunk = f.read(chunk_size)
                         if not chunk:
                             break
-                        content.append(chunk)
-                content = ''.join(content)
-            
+                        content_chunks.append(chunk)
+                content = ''.join(content_chunks)
+
             # 更新缓存（仅缓存小文件，避免内存占用过大）
             if file_size < 1024 * 1024:  # 小于1MB
                 logger.debug("Caching file content", path=str(path))
                 file_cache.set(str(path), content)
-            
+
             logger.info("File read successfully", path=str(path), size=file_size)
             return content
         except Exception as e:
@@ -231,18 +231,18 @@ class TextEditor:
             ValueError: If the file cannot be written.
         """
         logger.info("Writing file", path=str(path), content_length=len(content))
-        
+
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
             logger.debug("Created parent directories", path=str(path.parent))
-            
+
             path.write_text(content, encoding="utf-8")
             logger.debug("Written content to file", path=str(path))
-            
+
             # 清除缓存，确保下次读取时获取最新内容
             file_cache.clear(str(path))
             logger.debug("Cleared file cache", path=str(path))
-            
+
             logger.info("File written successfully", path=str(path))
         except Exception as e:
             logger.error("Error writing file", path=str(path), error=str(e))

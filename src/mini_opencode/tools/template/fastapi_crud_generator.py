@@ -6,7 +6,6 @@
 2. 不需要模板引擎，减少依赖
 3. 更容易维护和扩展
 """
-from typing import Any
 
 
 def generate_schema(model_name: str, model_name_lower: str) -> str:
@@ -197,7 +196,7 @@ def generate_all(model_name: str) -> dict[str, str]:
         文件路径到内容的映射字典
     """
     model_name_lower = model_name.lower()
-    
+
     return {
         f"schemas/{model_name}.py": generate_schema(model_name, model_name_lower),
         f"models/{model_name}.py": generate_model(model_name, model_name_lower),

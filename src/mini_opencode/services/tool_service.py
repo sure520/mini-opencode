@@ -1,6 +1,6 @@
 """Tool service for managing tool-related operations."""
 
-from typing import Dict, Any, Optional, Callable
+from typing import Dict, Optional, Callable, Any
 from langchain.tools import ToolRuntime
 
 
@@ -9,9 +9,9 @@ class ToolService:
 
     def __init__(self):
         """Initialize the tool service."""
-        self._tools: Dict[str, Callable] = {}
+        self._tools: Dict[str, Callable[..., Any]] = {}
 
-    def register_tool(self, name: str, tool_func: Callable) -> None:
+    def register_tool(self, name: str, tool_func: Callable[..., Any]) -> None:
         """Register a tool with the service.
 
         Args:
@@ -20,14 +20,14 @@ class ToolService:
         """
         self._tools[name] = tool_func
 
-    def get_tool(self, name: str) -> Optional[Callable]:
+    def get_tool(self, name: str) -> Optional[Callable[..., Any]]:
         """Get a tool by name.
 
         Args:
             name: The name of the tool.
 
         Returns:
-            Optional[Callable]: The tool function if found, None otherwise.
+            Optional[Callable[..., Any]]: The tool function if found, None otherwise.
         """
         return self._tools.get(name)
 
@@ -48,7 +48,7 @@ class ToolService:
 
         try:
             result = tool_func(runtime, **kwargs)
-            return result
+            return str(result)
         except Exception as e:
             return f"Error executing tool '{tool_name}': {str(e)}"
 

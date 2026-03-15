@@ -31,7 +31,7 @@ def quality_check(
     if include_ruff:
         try:
             ruff_result = subprocess.run(
-                ["ruff", "check", path],
+                ["ruff", "check", path or "."],
                 capture_output=True,
                 text=True,
                 cwd="."
@@ -51,7 +51,7 @@ def quality_check(
     if include_mypy:
         try:
             mypy_result = subprocess.run(
-                ["mypy", path],
+                ["mypy", path or "src/"],
                 capture_output=True,
                 text=True,
                 cwd="."

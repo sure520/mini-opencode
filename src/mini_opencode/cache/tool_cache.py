@@ -1,11 +1,11 @@
 """工具调用结果缓存"""
 import hashlib
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 
 
 class ToolCache:
     """工具调用结果缓存"""
-    
+
     def __init__(self, max_size: int = 50):
         """初始化工具缓存
         
@@ -14,7 +14,7 @@ class ToolCache:
         """
         self._cache: Dict[str, Dict[str, Any]] = {}
         self._max_size = max_size
-    
+
     def _generate_key(self, tool_name: str, **kwargs) -> str:
         """生成缓存键
         
@@ -30,7 +30,7 @@ class ToolCache:
         args_str = str(sorted_args)
         key = f"{tool_name}:{args_str}"
         return hashlib.md5(key.encode()).hexdigest()
-    
+
     def get(self, tool_name: str, **kwargs) -> Optional[Any]:
         """获取缓存的工具调用结果
         
@@ -45,7 +45,7 @@ class ToolCache:
         if key in self._cache:
             return self._cache[key]['result']
         return None
-    
+
     def set(self, tool_name: str, result: Any, **kwargs) -> None:
         """设置工具调用结果缓存
         
@@ -55,19 +55,19 @@ class ToolCache:
             **kwargs: 工具参数
         """
         key = self._generate_key(tool_name, **kwargs)
-        
+
         # 检查缓存大小，超出则清理
         if len(self._cache) >= self._max_size:
             # 简单的 LRU 策略：移除最早的项
             oldest_key = next(iter(self._cache))
             del self._cache[oldest_key]
-        
+
         self._cache[key] = {
             'result': result,
             'tool_name': tool_name,
             'params': kwargs
         }
-    
+
     def clear(self, tool_name: Optional[str] = None) -> None:
         """清理缓存
         
@@ -80,12 +80,12 @@ class ToolCache:
             for key, value in self._cache.items():
                 if value['tool_name'] == tool_name:
                     keys_to_remove.append(key)
-            
+
             for key in keys_to_remove:
                 del self._cache[key]
         else:
             self._cache.clear()
-    
+
     def size(self) -> int:
         """获取缓存大小
         

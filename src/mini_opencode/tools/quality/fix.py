@@ -29,7 +29,7 @@ def quality_fix(
     if fix_ruff:
         try:
             ruff_result = subprocess.run(
-                ["ruff", "check", "--fix", path],
+                ["ruff", "check", "--fix", path or "."],
                 capture_output=True,
                 text=True,
                 cwd="."

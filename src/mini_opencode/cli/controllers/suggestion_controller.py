@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Any
 
 from textual.app import App
 from textual.widgets import TabbedContent
@@ -17,7 +18,7 @@ from .command_controller import CommandController
 class SuggestionController:
     """Controller for handling input suggestions."""
 
-    def __init__(self, app: "App", command_controller: "CommandController"):
+    def __init__(self, app: "App[Any]", command_controller: "CommandController"):
         self.app = app
         self.command_controller = command_controller
 
@@ -35,7 +36,9 @@ class SuggestionController:
                 for cmd in self.command_controller.SLASH_COMMANDS
                 if cmd.startswith(query)
             ]
-            suggestion_view.set_suggestions(matches)
+            # Convert to list[str | dict[str, Any]]
+            suggestions: list[str | dict[str, Any]] = [cmd for cmd in matches]
+            suggestion_view.set_suggestions(suggestions)
             chat_input.suggestions_active = len(matches) > 0
             if matches:
                 self.app.query_one(
@@ -48,14 +51,20 @@ class SuggestionController:
             )
             if sessions:
                 # Format sessions for SuggestionView
-                session_suggestions = []
+                session_suggestions: list[str | dict[str, Any]] = []
                 for s in sessions:
-                    dt = datetime.fromisoformat(s["timestamp"])
-                    timestamp = dt.strftime("%Y-%m-%d %H:%M")
-                    display_text = f"{timestamp} - {s['preview'][:30]}..."
-                    session_suggestions.append(
-                        {"text": display_text, "value": s["id"], "type": "session"}
-                    )
+                    timestamp_str = str(s["timestamp"])
+                    if isinstance(timestamp_str, str):
+                        try:
+                            dt = datetime.fromisoformat(timestamp_str)
+                            timestamp = dt.strftime("%Y-%m-%d %H:%M")
+                            preview_str = str(s["preview"])
+                            display_text = f"{timestamp} - {preview_str[:30]}..."
+                            session_suggestions.append(
+                                {"text": display_text, "value": str(s["id"]), "type": "session"}
+                            )
+                        except ValueError:
+                            continue
 
                 suggestion_view.set_suggestions(session_suggestions)
                 chat_input.suggestions_active = True

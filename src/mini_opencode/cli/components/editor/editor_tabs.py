@@ -25,7 +25,8 @@ class EditorTabs(TabbedContent):
             tab = EditorTab(path)
             self.tab_map[path] = tab
             self.add_pane(tab)
-        self.active = tab.id
+        if tab.id:
+            self.active = tab.id
         tab.update(file_text)
         return tab
 
@@ -42,7 +43,8 @@ class EditorTabs(TabbedContent):
         markdown = Markdown(welcome_text, id="welcome-view")
         self.add_pane(tab)
         tab.mount(markdown)
-        self.active = tab.id
+        if tab.id:
+            self.active = tab.id
 
     def _find_tab_by_path(self, path: str) -> EditorTab | None:
         return self.tab_map.get(path)
@@ -55,7 +57,7 @@ class EditorTabs(TabbedContent):
         """Clear all tabs except welcome"""
         self.tab_map = {}
         for pane in list(self.query(TabPane)):
-            if pane.id != "welcome-tab":
+            if pane.id != "welcome-tab" and pane.id:
                 self.remove_pane(pane.id)
         self.active = "welcome-tab"
 
@@ -65,7 +67,7 @@ class EditorTab(TabPane):
         title = extract_filename(path)
         tab_id = kwargs.pop("id", None) or make_tab_id(path)
         super().__init__(title=title, id=tab_id, **kwargs)
-        self.path = path
+        self.path: str = path
 
     def compose(self) -> ComposeResult:
         yield CodeView(id="code-view")

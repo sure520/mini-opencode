@@ -1,8 +1,6 @@
 from typing import Annotated
 
-from langchain.messages import ToolMessage
 from langchain.tools import InjectedToolCallId, tool
-from langgraph.graph.state import Command
 
 from .types import TodoItem, TodoStatus
 
@@ -10,7 +8,7 @@ from .types import TodoItem, TodoStatus
 @tool("todo_write")
 def todo_write_tool(
     todos: list[TodoItem], tool_call_id: Annotated[str, InjectedToolCallId]
-) -> Command:
+) -> str:
     """Update the entire TODO list with the latest items.
 
     Args:
@@ -32,14 +30,5 @@ def todo_write_tool(
         f"Successfully updated the TODO list with {len(todos)} items. {status_msg}"
     )
 
-    return Command(
-        update={
-            "todos": todos,
-            "messages": [
-                ToolMessage(
-                    message,
-                    tool_call_id=tool_call_id,
-                )
-            ],
-        }
-    )
+    # Return the message directly
+    return message

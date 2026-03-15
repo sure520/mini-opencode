@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import re
+from typing import Any
 
 from langchain.messages import (
     AIMessage,
@@ -28,10 +29,10 @@ from mini_opencode.tools import load_mcp_tools
 class AgentController:
     """Controller for managing the AI agent and its interactions."""
 
-    def __init__(self, app: "App"):
+    def __init__(self, app: "App[Any]"):
         self.app = app
         self._coding_agent = None
-        self._mcp_tools: list = []
+        self._mcp_tools: list[Any] = []
         self._terminal_tool_calls: list[str] = []
         self._file_modification_tool_calls: dict[str, str] = {}
         self._checkpointer = MemorySaver()
@@ -42,7 +43,7 @@ class AgentController:
     def is_generating(self) -> bool:
         """Check if the agent is currently generating."""
         if hasattr(self.app, "is_generating"):
-            return self.app.is_generating
+            return bool(self.app.is_generating)
         return False
 
     @is_generating.setter
@@ -88,6 +89,13 @@ class AgentController:
         self.process_outgoing_message(user_message)
         self.is_generating = True
         try:
+            if not self._coding_agent:
+                error_message = AIMessage(
+                    content="❌ **Agent not initialized.** Please restart the application."
+                )
+                self.process_incoming_message(error_message)
+                return
+
             current_ai_message: AIMessageChunk | None = None
             async for event_type, chunk in self._coding_agent.astream(
                 {"messages": [user_message]},
@@ -163,8 +171,9 @@ class AgentController:
             tool_name = tool_call["name"]
             tool_args = tool_call["args"]
             preview = self._format_tool_call_preview(tool_name, tool_args)
-            if tool_name in {"bash", "tree", "grep", "ls"}:
-                self._terminal_tool_calls.append(tool_call["id"])
+            tool_id = tool_call.get("id")
+            if tool_name in {"bash", "tree", "grep", "ls"} and tool_id:
+                self._terminal_tool_calls.append(tool_id)
                 terminal_view.write(preview or f"$ {tool_name}")
                 bottom_right_tabs.active = "terminal-tab"
             elif tool_name == "todo_write":
@@ -174,24 +183,27 @@ class AgentController:
                 editor_tabs.open_file(tool_args["path"])
             elif tool_name == "write":
                 editor_tabs.open_file(tool_args["path"], tool_args.get("content"))
-                self._file_modification_tool_calls[tool_call["id"]] = tool_args["path"]
+                if tool_id:
+                    self._file_modification_tool_calls[tool_id] = tool_args["path"]
             elif tool_name == "edit":
                 editor_tabs.open_file(tool_args["path"])
-                self._file_modification_tool_calls[tool_call["id"]] = tool_args["path"]
+                if tool_id:
+                    self._file_modification_tool_calls[tool_id] = tool_args["path"]
 
     def process_tool_message(self, message: ToolMessage) -> None:
         """Handle tool results."""
         terminal_view = self.app.query_one("#terminal-view", TerminalView)
-        if message.tool_call_id in self._terminal_tool_calls:
-            output = self._extract_code(message.content)
+        tool_call_id = message.tool_call_id
+        if tool_call_id and tool_call_id in self._terminal_tool_calls:
+            output = self._extract_code(str(message.content))
             terminal_view.write(
                 output if output.strip() != "" else "\n(empty)\n",
                 muted=True,
             )
-            self._terminal_tool_calls.remove(message.tool_call_id)
-        elif self._file_modification_tool_calls.get(message.tool_call_id):
-            path = self._file_modification_tool_calls[message.tool_call_id]
-            del self._file_modification_tool_calls[message.tool_call_id]
+            self._terminal_tool_calls.remove(tool_call_id)
+        elif tool_call_id and tool_call_id in self._file_modification_tool_calls:
+            path = self._file_modification_tool_calls[tool_call_id]
+            del self._file_modification_tool_calls[tool_call_id]
             editor_tabs = self.app.query_one("#editor-tabs", EditorTabs)
             editor_tabs.open_file(path)
 
@@ -203,15 +215,16 @@ class AgentController:
         config = {"configurable": {"thread_id": "thread_1"}}
         try:
             state = await self._coding_agent.aget_state(config)
-            messages = state.values.get("messages", [])
-            if messages:
-                self.history_manager.save_session(
-                    messages, self._session_id, project_root=project.root_dir
-                )
+            if state and hasattr(state, "values"):
+                messages = state.values.get("messages", [])
+                if messages:
+                    self.history_manager.save_session(
+                        messages, self._session_id, project_root=project.root_dir
+                    )
         except Exception:
             pass
 
-    def _format_tool_call_preview(self, tool_name: str, tool_args: dict) -> str | None:
+    def _format_tool_call_preview(self, tool_name: str, tool_args: dict[str, Any]) -> str | None:
         """Format a tool call for the terminal view."""
         if tool_name == "bash":
             command = tool_args.get("command")
@@ -272,8 +285,9 @@ class AgentController:
             plugin_tools=self._mcp_tools, checkpointer=self._checkpointer
         )
 
-        config = {"configurable": {"thread_id": "thread_1"}}
-        await self._coding_agent.aupdate_state(config, {"messages": messages})
+        if self._coding_agent:
+            config = {"configurable": {"thread_id": "thread_1"}}
+            await self._coding_agent.aupdate_state(config, {"messages": messages})
 
         self._terminal_tool_calls = []
         self._file_modification_tool_calls = {}
