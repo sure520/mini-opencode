@@ -1,12 +1,13 @@
 import asyncio
 from typing import Any
 
-from langchain.messages import HumanMessage
+from langchain.messages import AIMessage, HumanMessage
 from textual import on
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Vertical
 from textual.widgets import Footer, Header, TabbedContent, TabPane, TextArea
+from textual.worker import Worker
 
 from mini_opencode import project
 from mini_opencode.cli.components import (
@@ -32,6 +33,7 @@ class ConsoleApp(App[Any]):
     ENABLE_COMMAND_PALETTE = False
     BINDINGS = [
         Binding("ctrl+c", "quit", "Quit", show=False),
+        Binding("ctrl+g", "stop_agent", "Stop", show=False),
     ]
     CSS = """
     Screen {
@@ -76,6 +78,7 @@ class ConsoleApp(App[Any]):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._is_generating = False
+        self._current_worker: Worker | None = None
 
         # Initialize controllers
         self.agent_controller = AgentController(self)
@@ -93,6 +96,8 @@ class ConsoleApp(App[Any]):
             chat_view = self.query_one("#chat-view", ChatView)
             chat_view.is_generating = value
             chat_view.disabled = value
+            chat_input = chat_view.query_one("#chat-input", ChatInput)
+            chat_input.is_generating = value
         except Exception:
             # Widget might not be mounted yet
             pass
@@ -152,11 +157,14 @@ class ConsoleApp(App[Any]):
                     return
 
                 user_message = HumanMessage(content=user_input)
-                self.run_worker(self.agent_controller.handle_user_input(user_message))
+                worker = self.run_worker(
+                    self.agent_controller.handle_user_input(user_message)
+                )
+                self._current_worker = worker
 
     @on(TextArea.Changed)
     def on_input_changed(self, event: TextArea.Changed) -> None:
-        if event.text_area.id != "chat-input":
+        if event.text_area.id != "chat-textarea":
             return
         self.suggestion_controller.update_suggestions(event.text_area.text)
 
@@ -168,5 +176,31 @@ class ConsoleApp(App[Any]):
     def on_select_suggestion(self, event: ChatInput.SelectSuggestion) -> None:
         self.suggestion_controller.select_suggestion()
 
+    @on(ChatInput.StopRequested)
+    def on_stop_requested(self, event: ChatInput.StopRequested) -> None:
+        if self._current_worker and not self._current_worker.is_done:
+            self.agent_controller._cancelled = True
+            self._current_worker.cancel()
+            self._current_worker = None
+            self.is_generating = False
+            terminal_view = self.query_one("#terminal-view", TerminalView)
+            terminal_view.write("\n$ [Cancelled by user]")
+            chat_view = self.query_one("#chat-view", ChatView)
+            chat_view.add_message(AIMessage(content="**Operation cancelled by user.**"))
+            self.focus_input()
+
     async def action_quit(self) -> None:
         await self.command_controller.action_quit()
+
+    async def action_stop_agent(self) -> None:
+        """Stop the currently running agent operation."""
+        if self._current_worker and not self._current_worker.is_done:
+            self.agent_controller._cancelled = True
+            self._current_worker.cancel()
+            self._current_worker = None
+            self.is_generating = False
+            terminal_view = self.query_one("#terminal-view", TerminalView)
+            terminal_view.write("\n$ [Cancelled by user]")
+            chat_view = self.query_one("#chat-view", ChatView)
+            chat_view.add_message(AIMessage(content="**Operation cancelled by user.**"))
+            self.focus_input()

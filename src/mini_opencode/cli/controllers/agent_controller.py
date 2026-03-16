@@ -38,6 +38,7 @@ class AgentController:
         self._checkpointer = MemorySaver()
         self._session_id = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         self.history_manager = HistoryManager()
+        self._cancelled = False
 
     @property
     def is_generating(self) -> bool:
@@ -86,6 +87,7 @@ class AgentController:
 
     async def handle_user_input(self, user_message: HumanMessage) -> None:
         """Handle user input and stream the response."""
+        self._cancelled = False
         self.process_outgoing_message(user_message)
         self.is_generating = True
         try:
@@ -97,46 +99,56 @@ class AgentController:
                 return
 
             current_ai_message: AIMessageChunk | None = None
-            async for event_type, chunk in self._coding_agent.astream(
-                {"messages": [user_message]},
-                stream_mode=["messages", "updates"],
-                config={"recursion_limit": 100, "thread_id": "thread_1"},
-            ):
-                if event_type == "messages":
-                    message_chunk, _ = chunk
-                    if isinstance(message_chunk, AIMessageChunk):
-                        if current_ai_message is None:
-                            current_ai_message = message_chunk
-                            self.process_incoming_message(current_ai_message)
-                        else:
-                            current_ai_message += message_chunk
-                            # During streaming, don't update tool call widgets to avoid partial parsing errors
-                            self.update_incoming_message(
-                                current_ai_message, update_tools=False
-                            )
+            try:
+                async for event_type, chunk in self._coding_agent.astream(
+                    {"messages": [user_message]},
+                    stream_mode=["messages", "updates"],
+                    config={"recursion_limit": 100, "thread_id": "thread_1"},
+                ):
+                    if self._cancelled:
+                        break
 
-                elif event_type == "updates":
-                    # Node finished. Reset current_ai_message for next potential AI response
-                    current_ai_message = None
+                    if event_type == "messages":
+                        message_chunk, _ = chunk
+                        if isinstance(message_chunk, AIMessageChunk):
+                            if current_ai_message is None:
+                                current_ai_message = message_chunk
+                                self.process_incoming_message(current_ai_message)
+                            else:
+                                current_ai_message += message_chunk
+                                self.update_incoming_message(
+                                    current_ai_message, update_tools=False
+                                )
 
-                    roles = chunk.keys()
-                    for role in roles:
-                        messages: list[AnyMessage] = chunk[role].get("messages", [])
-                        for message in messages:
-                            if isinstance(message, AIMessage):
-                                # Update with final message (includes complete tool calls)
-                                self.update_incoming_message(message, update_tools=True)
-                                if message.tool_calls:
-                                    self.process_tool_call_message(message)
-                            elif isinstance(message, ToolMessage):
-                                # Tool results are not streamed, add them normally
-                                self.process_incoming_message(message)
-                                self.process_tool_message(message)
+                    elif event_type == "updates":
+                        current_ai_message = None
+
+                        roles = chunk.keys()
+                        for role in roles:
+                            messages: list[AnyMessage] = chunk[role].get("messages", [])
+                            for message in messages:
+                                if isinstance(message, AIMessage):
+                                    self.update_incoming_message(message, update_tools=True)
+                                    if message.tool_calls:
+                                        self.process_tool_call_message(message)
+                                elif isinstance(message, ToolMessage):
+                                    self.process_incoming_message(message)
+                                    self.process_tool_message(message)
+            except asyncio.CancelledError:
+                self._cancelled = True
+                terminal_view = self.app.query_one("#terminal-view", TerminalView)
+                terminal_view.write("\n$ [Operation cancelled]")
+                self.is_generating = False
+                raise
+        except asyncio.CancelledError:
+            self._cancelled = True
+            raise
         except Exception as e:
-            error_message = AIMessage(
-                content=f"❌ **An error occurred:** {str(e)}\n\nPlease try again."
-            )
-            self.process_incoming_message(error_message)
+            if not self._cancelled:
+                error_message = AIMessage(
+                    content=f"❌ **An error occurred:** {str(e)}\n\nPlease try again."
+                )
+                self.process_incoming_message(error_message)
         finally:
             await self.save_current_history()
             self.is_generating = False

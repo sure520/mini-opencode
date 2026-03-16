@@ -17,10 +17,17 @@ def main() -> None:
     """
     if len(sys.argv) > 1:
         new_root = Path(sys.argv[1])
-        if not new_root.exists():
-            new_root.mkdir(parents=True, exist_ok=True)
     else:
         new_root = Path.cwd()
+
+    if not new_root.exists():
+        print(f"Error: The specified path does not exist: {new_root}", file=sys.stderr)
+        print("Please provide a valid directory path.", file=sys.stderr)
+        sys.exit(1)
+
+    if not new_root.is_dir():
+        print(f"Error: The specified path is not a directory: {new_root}", file=sys.stderr)
+        sys.exit(1)
 
     try:
         project.root_dir = new_root
