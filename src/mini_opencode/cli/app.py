@@ -96,9 +96,12 @@ class ConsoleApp(App[Any]):
             chat_view = self.query_one("#chat-view", ChatView)
             chat_view.is_generating = value
             chat_view.disabled = value
-            chat_input = chat_view.query_one("#chat-input", ChatInput)
-            chat_input.is_generating = value
-        except Exception:
+            try:
+                terminal_view = self.query_one("#terminal-view", TerminalView)
+                terminal_view.write(f"\n[DEBUG] App.is_generating={value}, chat_view.is_generating={chat_view.is_generating}\n")
+            except Exception:
+                pass
+        except Exception as e:
             # Widget might not be mounted yet
             pass
 
@@ -179,10 +182,11 @@ class ConsoleApp(App[Any]):
     @on(ChatInput.StopRequested)
     def on_stop_requested(self, event: ChatInput.StopRequested) -> None:
         if self._current_worker and not self._current_worker.is_done:
+            # 立即更新 UI，让用户看到按钮状态变化
+            self.is_generating = False
             self.agent_controller._cancelled = True
             self._current_worker.cancel()
             self._current_worker = None
-            self.is_generating = False
             terminal_view = self.query_one("#terminal-view", TerminalView)
             terminal_view.write("\n$ [Cancelled by user]")
             chat_view = self.query_one("#chat-view", ChatView)
@@ -195,10 +199,11 @@ class ConsoleApp(App[Any]):
     async def action_stop_agent(self) -> None:
         """Stop the currently running agent operation."""
         if self._current_worker and not self._current_worker.is_done:
+            # 立即更新 UI，让用户看到按钮状态变化
+            self.is_generating = False
             self.agent_controller._cancelled = True
             self._current_worker.cancel()
             self._current_worker = None
-            self.is_generating = False
             terminal_view = self.query_one("#terminal-view", TerminalView)
             terminal_view.write("\n$ [Cancelled by user]")
             chat_view = self.query_one("#chat-view", ChatView)

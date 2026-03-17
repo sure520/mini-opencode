@@ -28,6 +28,13 @@ class ChatView(Vertical):
         self._is_generating = value
         message_list = self.query_one("#message-list", MessageListView)
         message_list.is_generating = value
+        chat_input = self.query_one("#chat-input", ChatInput)
+        chat_input.is_generating = value
+        try:
+            terminal_view = self.query_one("#terminal-view", TerminalView)
+            terminal_view.write(f"[DEBUG] ChatView.is_generating={value}, chat_input.is_generating={chat_input.is_generating}\n")
+        except Exception:
+            pass
 
     def compose(self) -> ComposeResult:
         """Compose the chat interface"""

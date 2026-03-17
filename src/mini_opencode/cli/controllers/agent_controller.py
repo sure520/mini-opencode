@@ -90,6 +90,10 @@ class AgentController:
         self._cancelled = False
         self.process_outgoing_message(user_message)
         self.is_generating = True
+        
+        # Yield control to allow cancellation to be detected immediately
+        await asyncio.sleep(0)
+        
         try:
             if not self._coding_agent:
                 error_message = AIMessage(
@@ -105,8 +109,12 @@ class AgentController:
                     stream_mode=["messages", "updates"],
                     config={"recursion_limit": 100, "thread_id": "thread_1"},
                 ):
+                    # Check cancellation before processing each chunk
                     if self._cancelled:
                         break
+
+                    # Yield control to allow cancellation to be detected immediately
+                    await asyncio.sleep(0)
 
                     if event_type == "messages":
                         message_chunk, _ = chunk
@@ -125,8 +133,14 @@ class AgentController:
 
                         roles = chunk.keys()
                         for role in roles:
+                            if self._cancelled:
+                                break
                             messages: list[AnyMessage] = chunk[role].get("messages", [])
                             for message in messages:
+                                if self._cancelled:
+                                    break
+                                # Yield control before processing each message
+                                await asyncio.sleep(0)
                                 if isinstance(message, AIMessage):
                                     self.update_incoming_message(message, update_tools=True)
                                     if message.tool_calls:
@@ -142,7 +156,12 @@ class AgentController:
                 raise
         except asyncio.CancelledError:
             self._cancelled = True
-            raise
+            terminal_view = self.app.query_one("#terminal-view", TerminalView)
+            terminal_view.write("\n$ [Operation cancelled]")
+            self.is_generating = False
+            if hasattr(self.app, "focus_input"):
+                self.app.focus_input()
+            return
         except Exception as e:
             if not self._cancelled:
                 error_message = AIMessage(
@@ -150,18 +169,23 @@ class AgentController:
                 )
                 self.process_incoming_message(error_message)
         finally:
-            await self.save_current_history()
-            self.is_generating = False
-            if hasattr(self.app, "focus_input"):
-                self.app.focus_input()
+            if not self._cancelled:
+                await self.save_current_history()
+                self.is_generating = False
+                if hasattr(self.app, "focus_input"):
+                    self.app.focus_input()
 
     def process_outgoing_message(self, message: HumanMessage) -> None:
         """Add user message to chat view."""
+        if self._cancelled:
+            return
         chat_view = self.app.query_one("#chat-view", ChatView)
         chat_view.add_message(message)
 
     def process_incoming_message(self, message: AnyMessage) -> None:
         """Add AI or tool message to chat view."""
+        if self._cancelled:
+            return
         chat_view = self.app.query_one("#chat-view", ChatView)
         chat_view.add_message(message)
 
@@ -169,17 +193,23 @@ class AgentController:
         self, message: AnyMessage, update_tools: bool = True
     ) -> None:
         """Update the last message in chat view."""
+        if self._cancelled:
+            return
         chat_view = self.app.query_one("#chat-view", ChatView)
         chat_view.update_message(message, update_tools=update_tools)
 
     def process_tool_call_message(self, message: AIMessage) -> None:
         """Handle tool calls from the agent."""
+        if self._cancelled:
+            return
         terminal_view = self.app.query_one("#terminal-view", TerminalView)
         todo_list_view = self.app.query_one("#todo-list-view", TodoListView)
         editor_tabs = self.app.query_one("#editor-tabs", EditorTabs)
         bottom_right_tabs = self.app.query_one("#bottom-right-tabs", TabbedContent)
 
         for tool_call in message.tool_calls:
+            if self._cancelled:
+                break
             tool_name = tool_call["name"]
             tool_args = tool_call["args"]
             preview = self._format_tool_call_preview(tool_name, tool_args)
@@ -204,6 +234,8 @@ class AgentController:
 
     def process_tool_message(self, message: ToolMessage) -> None:
         """Handle tool results."""
+        if self._cancelled:
+            return
         terminal_view = self.app.query_one("#terminal-view", TerminalView)
         tool_call_id = message.tool_call_id
         if tool_call_id and tool_call_id in self._terminal_tool_calls:

@@ -65,7 +65,7 @@ class ChatInput(Container):
     }
 
     ChatInput ChatTextArea {
-        width: 100%;
+        width: 1fr;
         height: 100%;
         background: $boost;
         border: none;
@@ -79,7 +79,7 @@ class ChatInput(Container):
 
     ChatInput #send-button {
         width: 10;
-        dock: right;
+        height: 100%;
         background: $primary;
         color: $text;
         border: none;
@@ -152,19 +152,29 @@ class ChatInput(Container):
     def is_generating(self, value: bool) -> None:
         self._is_generating = value
         self._update_button_state()
+        try:
+            terminal_view = self.query_one("#terminal-view", TerminalView)
+            button_label = self._send_button.label if self._send_button else "None"
+            terminal_view.write(f"[DEBUG] ChatInput.is_generating={value}, button.label={button_label}\n")
+        except Exception as e:
+            try:
+                terminal_view = self.query_one("#terminal-view", TerminalView)
+                terminal_view.write(f"[DEBUG] ChatInput setter error: {e}\n")
+            except Exception:
+                pass
 
     def _update_button_state(self) -> None:
         if not self._send_button:
             return
 
         if self._is_generating:
-            self._send_button.label = "终止"
+            self._send_button.label = " 终止"
             self._send_button.variant = "error"
             self._send_button.disabled = False
             self._send_button.remove_class("stop-mode")
             self._send_button.add_class("stop-mode")
         elif self.text.strip():
-            self._send_button.label = "发送"
+            self._send_button.label = "➤ 发送"
             self._send_button.variant = "primary"
             self._send_button.disabled = False
             self._send_button.remove_class("stop-mode")
