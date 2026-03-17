@@ -24,6 +24,7 @@ from mini_opencode.cli.components import (
 )
 from mini_opencode.cli.history import HistoryManager
 from mini_opencode.tools import load_mcp_tools
+from mini_opencode.tools.mcp.mcp_manager import get_mcp_manager
 
 
 class AgentController:
@@ -39,6 +40,8 @@ class AgentController:
         self._session_id = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         self.history_manager = HistoryManager()
         self._cancelled = False
+        self._mcp_manager = get_mcp_manager()
+        self._config_watch_enabled = False
 
     @property
     def is_generating(self) -> bool:
@@ -53,12 +56,12 @@ class AgentController:
         if hasattr(self.app, "is_generating"):
             self.app.is_generating = value
 
-    async def init_agent(self) -> None:
+    async def init_agent(self, enable_config_watch: bool = True) -> None:
         """Initialize the agent and load tools."""
         terminal_view = self.app.query_one("#terminal-view", TerminalView)
         terminal_view.write("$ Loading MCP tools...")
         try:
-            self._mcp_tools = await load_mcp_tools()
+            self._mcp_tools = await self._mcp_manager.load_tools()
             tool_count = len(self._mcp_tools)
             if tool_count > 0:
                 terminal_view.write(
@@ -69,6 +72,13 @@ class AgentController:
                 terminal_view.write("- No tools found.\n", True)
         except Exception:
             terminal_view.write("- Error loading tools.\n", True)
+
+        # 注册工具更新回调
+        self._mcp_manager.on_tools_updated(self._on_tools_updated)
+
+        # 启动配置文件监听器
+        if enable_config_watch:
+            await self.start_config_watch()
 
         terminal_view.write("$ Loading agent...")
         try:
@@ -311,6 +321,46 @@ class AgentController:
         if match:
             return match.group(1)
         return text
+
+    def _on_tools_updated(self, new_tools: list[Any]) -> None:
+        """当 MCP 工具更新时的回调处理。"""
+        # 更新工具列表
+        self._mcp_tools = new_tools
+        
+        # 重新创建智能体以应用新工具
+        if self._coding_agent:
+            self._coding_agent = create_coding_agent(
+                plugin_tools=self._mcp_tools, checkpointer=self._checkpointer
+            )
+        
+        # 在终端显示更新信息
+        terminal_view = self.app.query_one("#terminal-view", TerminalView)
+        tool_count = len(new_tools)
+        terminal_view.write(
+            f"\n$ [MCP tools reloaded: {tool_count} tool{' is' if tool_count == 1 else 's are'} available]\n",
+            True,
+        )
+
+    async def start_config_watch(self) -> None:
+        """启动配置文件监听器。"""
+        if not self._config_watch_enabled:
+            self._config_watch_enabled = True
+            await self._mcp_manager.start_watching()
+
+    async def stop_config_watch(self) -> None:
+        """停止配置文件监听器。"""
+        self._config_watch_enabled = False
+        await self._mcp_manager.stop_watching()
+
+    async def reload_mcp_tools(self) -> None:
+        """手动重新加载 MCP 工具。"""
+        terminal_view = self.app.query_one("#terminal-view", TerminalView)
+        terminal_view.write("$ Reloading MCP tools...")
+        try:
+            await self._mcp_manager.reload_tools()
+            terminal_view.write("- MCP tools reloaded successfully.\n", True)
+        except Exception as e:
+            terminal_view.write(f"- Error reloading MCP tools: {e}\n", True)
 
     def clear_session(self) -> None:
         """Reset the agent session."""

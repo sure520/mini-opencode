@@ -209,3 +209,9 @@ class ConsoleApp(App[Any]):
             chat_view = self.query_one("#chat-view", ChatView)
             chat_view.add_message(AIMessage(content="**Operation cancelled by user.**"))
             self.focus_input()
+
+    def on_unmount(self) -> None:
+        """Clean up resources when the application exits."""
+        # 停止配置文件监听器
+        if hasattr(self, "agent_controller"):
+            asyncio.create_task(self.agent_controller.stop_config_watch())

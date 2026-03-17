@@ -12,6 +12,15 @@ mini-OpenCode is a lightweight, experimental AI Coding Agent inspired by Deer-Co
 - **Tooling System**: A modular toolset in `src/mini_opencode/tools/` covering file I/O, filesystem navigation, shell execution, and web research.
 - **Skills System**: A dynamic system (`src/mini_opencode/skills/`) that loads specialized instructions and resources from the `skills/` directory to enhance agent capabilities.
 
+### Task Cancellation Architecture
+The application implements a robust task cancellation mechanism:
+
+- **Cancellation Flag**: `AgentController._cancelled` flag is checked at multiple points during agent execution
+- **Worker Management**: Textual `Worker` objects are used to run agent tasks asynchronously, with proper cancellation handling
+- **State Propagation**: `is_generating` state flows through: `App` → `ChatView` → `ChatInput` → Button UI
+- **Immediate Response**: `asyncio.sleep(0)` is used in tight loops to allow immediate cancellation detection
+- **Graceful Shutdown**: All message processing methods check the cancellation flag and return early when cancelled
+
 ## 2. Build & Commands
 The project uses **uv** as its primary package manager.
 

@@ -28,6 +28,7 @@
 - **🚀 Agent Skills System**: Dynamically loads specialized instructions, scripts, and resources (Skills) to improve performance on specific tasks (e.g., frontend design).
 - **🎨 Interactive UI**: Features a clean terminal-based interface using [Textual](https://github.com/Textualize/textual), with support for automatic dark/light mode switching and streaming model responses.
 - **⚡️ Slash Commands**: Quickly access features with commands like `/clear` to reset chat, `/resume` to restore sessions, and `/exit` to quit, complete with auto-suggestions.
+- **🛑 Instant Task Control**: Real-time task cancellation with immediate UI feedback - click the "终止" button to stop any running agent task instantly.
 - **⚙️ Highly Configurable**: flexible YAML-based configuration for models, tools, and API keys.
 - **🔒 Type Safe**: Fully typed codebase (Python 3.12+) ensuring reliability and developer experience.
 - **⚡ Performance Optimized**: Built-in file caching with LRU strategy and intelligent large file streaming processing.
@@ -118,6 +119,11 @@ Start the LangGraph development server to visualize and interact with the agent:
 make dev
 ```
 Then open [https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2024](https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2024) in your browser.
+
+### Slash Commands
+- `/clear` - Clear the chat history.
+- `/resume` - Resume the last session.
+- `/exit` - Exit the application.
 
 ## 🏗️ Project Structure
 
