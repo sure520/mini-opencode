@@ -1,6 +1,6 @@
 from .chat import ChatInput, ChatView, MessageListView
 from .editor import CodeView, EditorTabs
-from .terminal import SuggestionView, TerminalView
+from .terminal import ResizeGrip, SuggestionView, TerminalView
 from .todo import TodoListView
 
 __all__ = [
@@ -9,6 +9,7 @@ __all__ = [
     "CodeView",
     "MessageListView",
     "EditorTabs",
+    "ResizeGrip",
     "TerminalView",
     "SuggestionView",
     "TodoListView",

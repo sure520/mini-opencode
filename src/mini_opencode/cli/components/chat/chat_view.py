@@ -4,6 +4,7 @@ from textual.containers import Vertical
 
 from .chat_input import ChatInput
 from .message_list_view import MessageListView
+from ..terminal.terminal_view import TerminalView
 
 
 class ChatView(Vertical):

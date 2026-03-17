@@ -1,4 +1,5 @@
 import asyncio
+import traceback
 from typing import Any
 
 from langchain.messages import AIMessage, HumanMessage
@@ -14,6 +15,7 @@ from mini_opencode.cli.components import (
     ChatInput,
     ChatView,
     EditorTabs,
+    ResizeGrip,
     SuggestionView,
     TerminalView,
     TodoListView,
@@ -67,11 +69,31 @@ class ConsoleApp(App[Any]):
 
     #bottom-right-tabs {
         height: 30%;
+        min-height: 10;
+        max-height: 80%;
         background: $panel;
     }
 
     #bottom-right-tabs TabPane {
         padding: 0;
+    }
+
+    #resize-grip {
+        height: 1;
+        width: 1fr;
+        background: $panel;
+    }
+
+    #resize-grip:hover, #resize-grip.hover {
+        background: $primary;
+    }
+
+    #resize-grip.dragging {
+        background: $primary-darken-1;
+    }
+
+    #resize-grip.hidden {
+        display: none;
     }
     """
 
@@ -98,7 +120,9 @@ class ConsoleApp(App[Any]):
             chat_view.disabled = value
             try:
                 terminal_view = self.query_one("#terminal-view", TerminalView)
-                terminal_view.write(f"\n[DEBUG] App.is_generating={value}, chat_view.is_generating={chat_view.is_generating}\n")
+                stack = traceback.format_stack(limit=5)
+                stack_str = ''.join(stack[-3:-1]).replace('\n', ' | ')
+                terminal_view.write(f"\n[DEBUG] App.is_generating={value}, chat_view.is_generating={chat_view.is_generating} | Call stack: {stack_str}\n")
             except Exception:
                 pass
         except Exception as e:
@@ -111,6 +135,7 @@ class ConsoleApp(App[Any]):
             yield ChatView(id="chat-view")
         with Vertical(id="right-panel"):
             yield EditorTabs(id="editor-tabs")
+            yield ResizeGrip(id="resize-grip")
             with TabbedContent(id="bottom-right-tabs"):
                 with TabPane(id="terminal-tab", title="Terminal"):
                     yield SuggestionView(id="suggestion-view")
@@ -160,6 +185,8 @@ class ConsoleApp(App[Any]):
                     return
 
                 user_message = HumanMessage(content=user_input)
+                # 立即设置生成状态，避免时序问题
+                self.is_generating = True
                 worker = self.run_worker(
                     self.agent_controller.handle_user_input(user_message)
                 )
@@ -181,17 +208,23 @@ class ConsoleApp(App[Any]):
 
     @on(ChatInput.StopRequested)
     def on_stop_requested(self, event: ChatInput.StopRequested) -> None:
+        terminal_view = self.query_one("#terminal-view", TerminalView)
+        terminal_view.write(f"[DEBUG] StopRequested received. _current_worker={self._current_worker is not None}, is_done={self._current_worker.is_done if self._current_worker else 'N/A'}, is_generating={self.is_generating}\n")
+        
         if self._current_worker and not self._current_worker.is_done:
             # 立即更新 UI，让用户看到按钮状态变化
+            terminal_view.write("[DEBUG] Proceeding to cancel worker\n")
             self.is_generating = False
             self.agent_controller._cancelled = True
+            terminal_view.write(f"[DEBUG] Cancelling worker: {self._current_worker}, is_done={self._current_worker.is_done}\n")
             self._current_worker.cancel()
             self._current_worker = None
-            terminal_view = self.query_one("#terminal-view", TerminalView)
             terminal_view.write("\n$ [Cancelled by user]")
             chat_view = self.query_one("#chat-view", ChatView)
             chat_view.add_message(AIMessage(content="**Operation cancelled by user.**"))
             self.focus_input()
+        else:
+            terminal_view.write(f"[DEBUG] Cannot cancel - worker is done or None\n")
 
     async def action_quit(self) -> None:
         await self.command_controller.action_quit()

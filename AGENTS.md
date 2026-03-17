@@ -12,6 +12,14 @@ mini-OpenCode is a lightweight, experimental AI Coding Agent inspired by Deer-Co
 - **Tooling System**: A modular toolset in `src/mini_opencode/tools/` covering file I/O, filesystem navigation, shell execution, and web research.
 - **Skills System**: A dynamic system (`src/mini_opencode/skills/`) that loads specialized instructions and resources from the `skills/` directory to enhance agent capabilities.
 
+### UI Components
+The UI layer includes several key components:
+- **TerminalView**: Displays terminal output with mouse selection support (click and drag to select content)
+- **ResizeGrip**: A draggable handle for resizing the terminal area vertically (hover to show, drag to resize)
+- **ChatView**: Chat interface for interacting with the AI agent
+- **EditorTabs**: Tab-based code editor
+- **TodoListView**: Task management view
+
 ### Task Cancellation Architecture
 The application implements a robust task cancellation mechanism:
 

@@ -3,6 +3,7 @@ from textual.containers import Container, Horizontal
 from textual.message import Message
 from textual.widgets import Button, TextArea
 
+from mini_opencode.cli.components.terminal.terminal_view import TerminalView
 
 class ChatTextArea(TextArea):
     """Custom TextArea that captures Enter and Shift+Enter keys."""
@@ -215,7 +216,18 @@ class ChatInput(Container):
     @on(Button.Pressed)
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "send-button":
+            try:
+                terminal_view = self.query_one("#terminal-view", TerminalView)
+                terminal_view.write(f"[DEBUG] Button pressed. _is_generating={self._is_generating}\n")
+            except Exception:
+                pass
+            
             if self._is_generating:
+                try:
+                    terminal_view = self.query_one("#terminal-view", TerminalView)
+                    terminal_view.write("[DEBUG] Posting StopRequested message\n")
+                except Exception:
+                    pass
                 self.post_message(self.StopRequested())
             else:
                 self.action_submit()

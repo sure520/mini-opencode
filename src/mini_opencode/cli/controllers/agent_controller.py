@@ -163,7 +163,9 @@ class AgentController:
                 terminal_view = self.app.query_one("#terminal-view", TerminalView)
                 terminal_view.write("\n$ [Operation cancelled]")
                 self.is_generating = False
-                raise
+                if hasattr(self.app, "focus_input"):
+                    self.app.focus_input()
+                return
         except asyncio.CancelledError:
             self._cancelled = True
             terminal_view = self.app.query_one("#terminal-view", TerminalView)
@@ -179,11 +181,11 @@ class AgentController:
                 )
                 self.process_incoming_message(error_message)
         finally:
+            self.is_generating = False
             if not self._cancelled:
                 await self.save_current_history()
-                self.is_generating = False
-                if hasattr(self.app, "focus_input"):
-                    self.app.focus_input()
+            if hasattr(self.app, "focus_input"):
+                self.app.focus_input()
 
     def process_outgoing_message(self, message: HumanMessage) -> None:
         """Add user message to chat view."""
