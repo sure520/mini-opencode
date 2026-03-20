@@ -17,7 +17,7 @@ from .agent_controller import AgentController
 class CommandController:
     """Controller for handling slash commands."""
 
-    SLASH_COMMANDS = ["/clear", "/resume", "/exit", "/quit"]
+    SLASH_COMMANDS = ["/clear", "/resume", "/exit", "/quit", "/mcp-reload"]
 
     def __init__(self, app: "App[Any]", agent_controller: AgentController):
         self.app = app
@@ -36,6 +36,8 @@ class CommandController:
             self.handle_resume_command(args)
         elif cmd == "/exit" or cmd == "/quit":
             self.app.run_worker(self.action_quit())
+        elif cmd == "/mcp-reload":
+            self.app.run_worker(self.handle_mcp_reload_command())
         else:
             terminal_view = self.app.query_one("#terminal-view", TerminalView)
             terminal_view.write(f"Unknown command: {cmd}\n")
@@ -110,6 +112,15 @@ class CommandController:
             self.agent_controller.is_generating = False
             if hasattr(self.app, "focus_input"):
                 self.app.focus_input()
+
+    async def handle_mcp_reload_command(self) -> None:
+        """Handle the /mcp-reload command to manually reload MCP tools."""
+        terminal_view = self.app.query_one("#terminal-view", TerminalView)
+        terminal_view.write("$ Reloading MCP tools...\n")
+        try:
+            await self.agent_controller.reload_mcp_tools()
+        except Exception as e:
+            terminal_view.write(f"Error: {e}\n")
 
     async def action_quit(self) -> None:
         """Save history and exit the application."""

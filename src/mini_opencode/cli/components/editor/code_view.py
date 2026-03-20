@@ -12,6 +12,11 @@ class CodeView(ScrollableContainer):
     DEFAULT_CSS = """
     CodeView {
         height: 1fr;
+        scrollbar-size: 1 1;
+        scrollbar-background: $surface;
+        scrollbar-color: $primary-darken-2;
+        scrollbar-color-hover: $primary;
+        scrollbar-color-active: $primary-lighten-1;
     }
 
     CodeView #code-content {

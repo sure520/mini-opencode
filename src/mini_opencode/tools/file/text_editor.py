@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Literal
 
+from mini_opencode import project
 from mini_opencode.cache.file_cache import file_cache
 from mini_opencode.logging_config import get_logger
 
@@ -29,32 +30,28 @@ class TextEditor:
         Raises:
             ValueError: If path is not absolute, contains directory traversal, or is outside allowed directories.
         """
-        # Check that the path is absolute
         if not path.is_absolute():
             suggested_path = Path.cwd().resolve() / path
             raise ValueError(
                 f"The path {path} is not an absolute path, it should start with `/`. Do you mean {suggested_path}?"
             )
 
-        # Prevent directory traversal attacks
         try:
             resolved_path = path.resolve()
         except Exception as e:
             raise ValueError(f"Invalid path: {path}. Error: {e}")
 
-        # Check for directory traversal
         path_str = str(path)
         if '..' in path_str or resolved_path != path:
             raise ValueError(
                 f"Path contains directory traversal attempts: {path}"
             )
 
-        # Path whitelist - only allow paths within the current working directory
-        # This prevents access to system files and sensitive directories
-        cwd = Path.cwd().resolve()
-        if not resolved_path.is_relative_to(cwd):
+        allowed_dir = project.root_dir
+        if not resolved_path.is_relative_to(allowed_dir):
             raise ValueError(
-                f"Path {path} is outside the allowed directory: {cwd}"
+                f"Path {path} is outside the allowed project directory: {allowed_dir}. "
+                f"Files can only be accessed within {allowed_dir}."
             )
 
     def read(self, path: Path, read_range: list[int] | None = None) -> str:

@@ -24,6 +24,7 @@ from mini_opencode.cli.components import (
 )
 from mini_opencode.cli.history import HistoryManager
 from mini_opencode.tools import load_mcp_tools
+from mini_opencode.tools.mcp.mcp_manager import get_mcp_manager
 
 
 class AgentController:
@@ -38,6 +39,9 @@ class AgentController:
         self._checkpointer = MemorySaver()
         self._session_id = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         self.history_manager = HistoryManager()
+        self._cancelled = False
+        self._mcp_manager = get_mcp_manager()
+        self._config_watch_enabled = False
 
     @property
     def is_generating(self) -> bool:
@@ -52,12 +56,12 @@ class AgentController:
         if hasattr(self.app, "is_generating"):
             self.app.is_generating = value
 
-    async def init_agent(self) -> None:
+    async def init_agent(self, enable_config_watch: bool = True) -> None:
         """Initialize the agent and load tools."""
         terminal_view = self.app.query_one("#terminal-view", TerminalView)
         terminal_view.write("$ Loading MCP tools...")
         try:
-            self._mcp_tools = await load_mcp_tools()
+            self._mcp_tools = await self._mcp_manager.load_tools()
             tool_count = len(self._mcp_tools)
             if tool_count > 0:
                 terminal_view.write(
@@ -68,6 +72,13 @@ class AgentController:
                 terminal_view.write("- No tools found.\n", True)
         except Exception:
             terminal_view.write("- Error loading tools.\n", True)
+
+        # 注册工具更新回调
+        self._mcp_manager.on_tools_updated(self._on_tools_updated)
+
+        # 启动配置文件监听器
+        if enable_config_watch:
+            await self.start_config_watch()
 
         terminal_view.write("$ Loading agent...")
         try:
@@ -86,8 +97,13 @@ class AgentController:
 
     async def handle_user_input(self, user_message: HumanMessage) -> None:
         """Handle user input and stream the response."""
+        self._cancelled = False
         self.process_outgoing_message(user_message)
         self.is_generating = True
+        
+        # Yield control to allow cancellation to be detected immediately
+        await asyncio.sleep(0)
+        
         try:
             if not self._coding_agent:
                 error_message = AIMessage(
@@ -97,59 +113,91 @@ class AgentController:
                 return
 
             current_ai_message: AIMessageChunk | None = None
-            async for event_type, chunk in self._coding_agent.astream(
-                {"messages": [user_message]},
-                stream_mode=["messages", "updates"],
-                config={"recursion_limit": 100, "thread_id": "thread_1"},
-            ):
-                if event_type == "messages":
-                    message_chunk, _ = chunk
-                    if isinstance(message_chunk, AIMessageChunk):
-                        if current_ai_message is None:
-                            current_ai_message = message_chunk
-                            self.process_incoming_message(current_ai_message)
-                        else:
-                            current_ai_message += message_chunk
-                            # During streaming, don't update tool call widgets to avoid partial parsing errors
-                            self.update_incoming_message(
-                                current_ai_message, update_tools=False
-                            )
+            try:
+                async for event_type, chunk in self._coding_agent.astream(
+                    {"messages": [user_message]},
+                    stream_mode=["messages", "updates"],
+                    config={"recursion_limit": 100, "thread_id": "thread_1"},
+                ):
+                    # Check cancellation before processing each chunk
+                    if self._cancelled:
+                        break
 
-                elif event_type == "updates":
-                    # Node finished. Reset current_ai_message for next potential AI response
-                    current_ai_message = None
+                    # Yield control to allow cancellation to be detected immediately
+                    await asyncio.sleep(0)
 
-                    roles = chunk.keys()
-                    for role in roles:
-                        messages: list[AnyMessage] = chunk[role].get("messages", [])
-                        for message in messages:
-                            if isinstance(message, AIMessage):
-                                # Update with final message (includes complete tool calls)
-                                self.update_incoming_message(message, update_tools=True)
-                                if message.tool_calls:
-                                    self.process_tool_call_message(message)
-                            elif isinstance(message, ToolMessage):
-                                # Tool results are not streamed, add them normally
-                                self.process_incoming_message(message)
-                                self.process_tool_message(message)
-        except Exception as e:
-            error_message = AIMessage(
-                content=f"❌ **An error occurred:** {str(e)}\n\nPlease try again."
-            )
-            self.process_incoming_message(error_message)
-        finally:
-            await self.save_current_history()
+                    if event_type == "messages":
+                        message_chunk, _ = chunk
+                        if isinstance(message_chunk, AIMessageChunk):
+                            if current_ai_message is None:
+                                current_ai_message = message_chunk
+                                self.process_incoming_message(current_ai_message)
+                            else:
+                                current_ai_message += message_chunk
+                                self.update_incoming_message(
+                                    current_ai_message, update_tools=False
+                                )
+
+                    elif event_type == "updates":
+                        current_ai_message = None
+
+                        roles = chunk.keys()
+                        for role in roles:
+                            if self._cancelled:
+                                break
+                            messages: list[AnyMessage] = chunk[role].get("messages", [])
+                            for message in messages:
+                                if self._cancelled:
+                                    break
+                                # Yield control before processing each message
+                                await asyncio.sleep(0)
+                                if isinstance(message, AIMessage):
+                                    self.update_incoming_message(message, update_tools=True)
+                                    if message.tool_calls:
+                                        self.process_tool_call_message(message)
+                                elif isinstance(message, ToolMessage):
+                                    self.process_incoming_message(message)
+                                    self.process_tool_message(message)
+            except asyncio.CancelledError:
+                self._cancelled = True
+                terminal_view = self.app.query_one("#terminal-view", TerminalView)
+                terminal_view.write("\n$ [Operation cancelled]")
+                self.is_generating = False
+                if hasattr(self.app, "focus_input"):
+                    self.app.focus_input()
+                return
+        except asyncio.CancelledError:
+            self._cancelled = True
+            terminal_view = self.app.query_one("#terminal-view", TerminalView)
+            terminal_view.write("\n$ [Operation cancelled]")
             self.is_generating = False
+            if hasattr(self.app, "focus_input"):
+                self.app.focus_input()
+            return
+        except Exception as e:
+            if not self._cancelled:
+                error_message = AIMessage(
+                    content=f"❌ **An error occurred:** {str(e)}\n\nPlease try again."
+                )
+                self.process_incoming_message(error_message)
+        finally:
+            self.is_generating = False
+            if not self._cancelled:
+                await self.save_current_history()
             if hasattr(self.app, "focus_input"):
                 self.app.focus_input()
 
     def process_outgoing_message(self, message: HumanMessage) -> None:
         """Add user message to chat view."""
+        if self._cancelled:
+            return
         chat_view = self.app.query_one("#chat-view", ChatView)
         chat_view.add_message(message)
 
     def process_incoming_message(self, message: AnyMessage) -> None:
         """Add AI or tool message to chat view."""
+        if self._cancelled:
+            return
         chat_view = self.app.query_one("#chat-view", ChatView)
         chat_view.add_message(message)
 
@@ -157,17 +205,23 @@ class AgentController:
         self, message: AnyMessage, update_tools: bool = True
     ) -> None:
         """Update the last message in chat view."""
+        if self._cancelled:
+            return
         chat_view = self.app.query_one("#chat-view", ChatView)
         chat_view.update_message(message, update_tools=update_tools)
 
     def process_tool_call_message(self, message: AIMessage) -> None:
         """Handle tool calls from the agent."""
+        if self._cancelled:
+            return
         terminal_view = self.app.query_one("#terminal-view", TerminalView)
         todo_list_view = self.app.query_one("#todo-list-view", TodoListView)
         editor_tabs = self.app.query_one("#editor-tabs", EditorTabs)
         bottom_right_tabs = self.app.query_one("#bottom-right-tabs", TabbedContent)
 
         for tool_call in message.tool_calls:
+            if self._cancelled:
+                break
             tool_name = tool_call["name"]
             tool_args = tool_call["args"]
             preview = self._format_tool_call_preview(tool_name, tool_args)
@@ -192,6 +246,8 @@ class AgentController:
 
     def process_tool_message(self, message: ToolMessage) -> None:
         """Handle tool results."""
+        if self._cancelled:
+            return
         terminal_view = self.app.query_one("#terminal-view", TerminalView)
         tool_call_id = message.tool_call_id
         if tool_call_id and tool_call_id in self._terminal_tool_calls:
@@ -267,6 +323,46 @@ class AgentController:
         if match:
             return match.group(1)
         return text
+
+    def _on_tools_updated(self, new_tools: list[Any]) -> None:
+        """当 MCP 工具更新时的回调处理。"""
+        # 更新工具列表
+        self._mcp_tools = new_tools
+        
+        # 重新创建智能体以应用新工具
+        if self._coding_agent:
+            self._coding_agent = create_coding_agent(
+                plugin_tools=self._mcp_tools, checkpointer=self._checkpointer
+            )
+        
+        # 在终端显示更新信息
+        terminal_view = self.app.query_one("#terminal-view", TerminalView)
+        tool_count = len(new_tools)
+        terminal_view.write(
+            f"\n$ [MCP tools reloaded: {tool_count} tool{' is' if tool_count == 1 else 's are'} available]\n",
+            True,
+        )
+
+    async def start_config_watch(self) -> None:
+        """启动配置文件监听器。"""
+        if not self._config_watch_enabled:
+            self._config_watch_enabled = True
+            await self._mcp_manager.start_watching()
+
+    async def stop_config_watch(self) -> None:
+        """停止配置文件监听器。"""
+        self._config_watch_enabled = False
+        await self._mcp_manager.stop_watching()
+
+    async def reload_mcp_tools(self) -> None:
+        """手动重新加载 MCP 工具。"""
+        terminal_view = self.app.query_one("#terminal-view", TerminalView)
+        terminal_view.write("$ Reloading MCP tools...")
+        try:
+            await self._mcp_manager.reload_tools()
+            terminal_view.write("- MCP tools reloaded successfully.\n", True)
+        except Exception as e:
+            terminal_view.write(f"- Error reloading MCP tools: {e}\n", True)
 
     def clear_session(self) -> None:
         """Reset the agent session."""

@@ -14,10 +14,16 @@ class MessageListView(VerticalScroll):
         height: 1fr;
         padding: 1 0;
         background: $surface;
+        scrollbar-size: 1 1;
+        scrollbar-background: $surface;
+        scrollbar-color: $primary-darken-2;
+        scrollbar-color-hover: $primary;
+        scrollbar-color-active: $primary-lighten-1;
     }
 
     MessageListView #message-list {
         height: auto;
+        width: 1fr;
     }
 
     MessageListView.generating #loading {
