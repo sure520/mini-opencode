@@ -10,6 +10,7 @@
 |------|------|
 | 语言 | Python 3.12+ |
 | 核心框架 | LangGraph |
+| 记忆层 | Mem0 |
 | CLI 界面 | Textual |
 | 包管理 | uv |
 | 测试 | pytest + pytest-asyncio + pytest-cov |
@@ -31,7 +32,7 @@ make install
    ```bash
    cp .example.env .env
    ```
-   编辑 `.env` 填入 API Key（DeepSeek、Ark/Doubao、Kimi、Tavily、Firecrawl）
+   编辑 `.env` 填入 API Key（DeepSeek、Ark/Doubao、Kimi、Tavily、Firecrawl、OpenAI for Mem0）
 
 2. 复制配置文件：
    ```bash
@@ -70,7 +71,8 @@ mini-opencode/
 │   ├── cache/            # 文件缓存 (LRU)
 │   ├── logging_config.py # 结构化日志配置
 │   ├── main.py           # CLI 入口
-│   └── project.py        # 项目上下文管理
+│   ├── project.py        # 项目上下文管理
+│   └── services/         # 业务服务 (agent, memory, session, message, tool)
 ├── skills/               # 代理技能目录
 ├── tests/                # 单元测试
 ├── Makefile              # 构建命令
@@ -122,6 +124,7 @@ ruff check src/mini_opencode
 ### config.yaml
 
 - **models**: 选择 LLM 提供商（DeepSeek、Doubao、Kimi）
+- **memory**: Mem0 记忆层配置（启用/禁用、用户ID、搜索限制、向量存储）
 - **tools**: 启用/禁用工具，配置 API Key
 - **mcp_servers**: MCP 服务器配置
 
@@ -132,6 +135,7 @@ ruff check src/mini_opencode
 - `KIMI_API_KEY`: 月之暗面 Kimi API
 - `TAVILY_API_KEY`: Tavily 搜索 API
 - `FIRECRAWL_API_KEY`: Firecrawl 爬虫 API
+- `OPENAI_API_KEY`: OpenAI API（Mem0 记忆层使用）
 
 ## 可用工具
 
@@ -146,6 +150,39 @@ ruff check src/mini_opencode
 | bash | 执行终端命令 |
 | web_search | 网络搜索 |
 | web_crawl | 网页爬取 |
+
+## 记忆层 (Mem0)
+
+mini-OpenCode 集成了 Mem0 记忆层，提供长期记忆功能：
+
+### 特性
+
+- **自动记忆保存**: 每次对话后自动保存到 Mem0
+- **智能上下文注入**: 在系统提示词中自动注入相关记忆
+- **用户隔离**: 支持多用户，通过 `user_id` 隔离记忆
+- **可配置**: 通过 `config.yaml` 完全控制记忆功能
+
+### 配置示例
+
+```yaml
+memory:
+  enabled: true
+  user_id: default_user
+  search_limit: 5
+  # 可选：自定义 Mem0 配置
+  # config:
+  #   vector_store:
+  #     provider: qdrant
+  #     config:
+  #       path: ./.mem0/qdrant
+```
+
+### 环境变量
+
+```bash
+# Mem0 默认使用 OpenAI 进行嵌入和事实提取
+OPENAI_API_KEY=sk-your-key
+```
 
 ## 常用命令
 

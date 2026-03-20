@@ -10,6 +10,7 @@ from mini_opencode import project
 from mini_opencode.config import get_config_section
 from mini_opencode.models import init_chat_model
 from mini_opencode.prompts import apply_prompt_template
+from mini_opencode.services.memory_service import MemoryService
 from mini_opencode.skills import load_skills
 from mini_opencode.tools import (
     bash_tool,
@@ -43,13 +44,17 @@ TOOL_MAP = {
 
 
 def create_coding_agent(
-    plugin_tools: list[BaseTool] = [], checkpointer: MemorySaver | None = None, **kwargs
-):
+    plugin_tools: list[BaseTool] = [],
+    checkpointer: MemorySaver | None = None,
+    memory_service: MemoryService | None = None,
+    **kwargs: Any,
+) -> Any:
     """Create a coding agent.
 
     Args:
         plugin_tools: Additional tools to add to the agent.
         checkpointer: Checkpointer to use for the agent.
+        memory_service: Memory service for long-term memory operations.
         **kwargs: Additional keyword arguments to pass to the agent.
 
     Returns:
@@ -57,6 +62,18 @@ def create_coding_agent(
     """
     # Initialize model
     model = init_chat_model()
+
+    # Initialize memory service if not provided
+    if memory_service is None:
+        memory_enabled = get_config_section(['memory', 'enabled'])
+        memory_enabled = memory_enabled if isinstance(memory_enabled, bool) else True
+        memory_user_id = get_config_section(['memory', 'user_id'])
+        memory_user_id = (
+            memory_user_id if isinstance(memory_user_id, str) else 'default'
+        )
+        memory_service = MemoryService(
+            enabled=memory_enabled, user_id=memory_user_id
+        )
 
     # Initialize tools
     enabled_tools_config = get_config_section(["tools", "enabled"])
@@ -83,20 +100,29 @@ def create_coding_agent(
         ]
 
     # Initialize system prompt
-    skills_dir = Path(project.root_dir) / "skills"
+    skills_dir = Path(project.root_dir) / 'skills'
     skills = load_skills(skills_dir)
-    skills_list_str = "\n".join(
-        [f"- {skill.name}: {skill.path}\n  {skill.description}" for skill in skills]
+    skills_list_str = '\n'.join(
+        [f'- {skill.name}: {skill.path}\n  {skill.description}' for skill in skills]
     )
 
+    # Get memory context if available
+    memory_context = ''
+    if memory_service.is_enabled:
+        # Use a general query to get relevant past context
+        memory_context = memory_service.get_memory_context(
+            'coding preferences and project context'
+        )
+
     system_prompt = apply_prompt_template(
-        "coding_agent",
+        'coding_agent',
         PROJECT_ROOT=project.root_dir,
         SKILLS_PATH=str(skills_dir.absolute()),
         SKILLS_LIST=skills_list_str,
+        MEMORY_CONTEXT=memory_context,
     )
 
-    return create_agent(
+    agent = create_agent(
         model=model,
         tools=[
             *tools,
@@ -105,11 +131,24 @@ def create_coding_agent(
         system_prompt=system_prompt,
         state_schema=CodingAgentState,  # type: ignore
         checkpointer=checkpointer,
-        name="coding_agent",
+        name='coding_agent',
         **kwargs,
     )
 
+    # Attach memory service to agent for later use
+    agent.memory_service = memory_service  # type: ignore
 
-def create_coding_agent_for_debug(config: dict[str, Any]):
-    project.root_dir = os.getenv("PROJECT_ROOT", os.getcwd())
+    return agent
+
+
+def create_coding_agent_for_debug(config: dict[str, Any]) -> Any:
+    """Create a coding agent for debugging.
+
+    Args:
+        config: Configuration dictionary.
+
+    Returns:
+        The coding agent.
+    """
+    project.root_dir = os.getenv('PROJECT_ROOT', os.getcwd())
     return create_coding_agent(debug=True)

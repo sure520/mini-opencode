@@ -22,6 +22,7 @@
 ## ✨ Features
 
 - **🤖 Intelligent Coding Agent**: Leverages LangGraph for stateful, multi-step reasoning and execution.
+- **🧠 Long-term Memory**: Integrated Mem0 memory layer for personalized AI interactions that remember your preferences and past conversations across sessions.
 - **📝 Context-Aware Task Management**: Built-in TODO system to track progress on complex, multi-step tasks.
 - **🛠️ Comprehensive Toolset**: Includes tools for file operations (`read`, `write`, `edit`), filesystem navigation (`ls`, `tree`, `grep`), terminal commands (`bash`), web search (`tavily`), and web crawling (`firecrawl`).
 - **🔌 Extensible Architecture**: Supports [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) for integrating external tools and servers.
@@ -88,6 +89,8 @@
     KIMI_API_KEY=your_kimi_key
     TAVILY_API_KEY=your_tavily_key
     FIRECRAWL_API_KEY=your_firecrawl_key
+    # For Mem0 memory service (uses OpenAI by default):
+    OPENAI_API_KEY=your_openai_key
     ```
 
 2.  **Application Config**
@@ -95,7 +98,7 @@
     ```bash
     cp config.example.yaml config.yaml
     ```
-    Edit `config.yaml` to customize enabled tools, model parameters, and MCP servers.
+    Edit `config.yaml` to customize enabled tools, model parameters, MCP servers, and memory settings.
 
 3.  **LangGraph Config (Optional)**
     If you plan to use LangGraph Studio to debug the agent, copy the example LangGraph configuration file:
@@ -151,6 +154,7 @@ mini-opencode/
 ├── skills/               # Agent Skills (instructions, scripts, and references)
 ├── tests/                # Unit tests (pytest)
 │   └── unit/             # Unit tests for core modules
+├── .mem0/                # Mem0 memory storage (auto-created)
 ├── AGENTS.md             # Developer guide for agents
 ├── Makefile              # Build & run commands
 ├── config.example.yaml   # Template configuration
@@ -170,6 +174,17 @@ mini-opencode/
 - **Type Hints**: Mandatory for all functions.
 - **Docstrings**: Google style required.
 - **Naming**: `snake_case` for functions/vars, `PascalCase` for classes.
+
+### Memory Layer
+
+### Memory Layer
+
+The agent includes a **Mem0** memory layer for long-term memory storage:
+
+- **Automatic Memory**: Conversations are automatically saved to memory after each interaction
+- **Context Injection**: Relevant memories are retrieved and injected into the system prompt
+- **User Isolation**: Each user has isolated memory using configurable `user_id`
+- **Configurable**: Enable/disable via `config.yaml`, customize vector store settings
 
 See [AGENTS.md](AGENTS.md) for detailed development guidelines.
 

@@ -6,8 +6,9 @@ This document provides a high-level overview of the mini-OpenCode architecture, 
 mini-OpenCode is a lightweight, experimental AI Coding Agent inspired by Deer-Code and OpenCode. It leverages **LangGraph** to implement a stateful, iterative reasoning loop for code development.
 
 ### Core Architecture
-- **State Management**: Uses `CodingAgentState` (extending LangGraph's `MessagesState`) to track conversation history and a persistent list of `todos`.
+- **State Management**: Uses `CodingAgentState` (extending LangGraph's `MessagesState`) to track conversation history, a persistent list of `todos`, and memory context.
 - **Agent Logic**: The core agent is defined in `src/mini_opencode/agents/coding_agent.py`, using `create_agent` from LangGraph.
+- **Memory Layer**: Integrated **Mem0** framework for long-term memory storage and retrieval, enabling personalized AI interactions across sessions.
 - **UI Layer**: A terminal-based interface built with **Textual** (`src/mini_opencode/cli/`), providing streaming responses and interactive components.
 - **Tooling System**: A modular toolset in `src/mini_opencode/tools/` covering file I/O, filesystem navigation, shell execution, and web research.
 - **Skills System**: A dynamic system (`src/mini_opencode/skills/`) that loads specialized instructions and resources from the `skills/` directory to enhance agent capabilities.
@@ -62,6 +63,7 @@ mini-OpenCode follows strict Python coding standards to ensure reliability and m
 - **Tool Execution**: The `bash` tool executes shell commands; agents should exercise caution and avoid destructive operations unless explicitly requested.
 
 ## 6. Configuration
-- **Application Config**: Managed via `config.yaml` (see `config.example.yaml` for a template). This file controls model selection (DeepSeek, Doubao, Kimi), tool activation, and MCP server integrations.
-- **Environment**: `.env` file handles API keys for LLM providers and web tools (Tavily, Firecrawl).
+- **Application Config**: Managed via `config.yaml` (see `config.example.yaml` for a template). This file controls model selection (DeepSeek, Doubao, Kimi), tool activation, MCP server integrations, and memory settings.
+- **Environment**: `.env` file handles API keys for LLM providers, web tools (Tavily, Firecrawl), and Mem0 memory service (OpenAI API key).
 - **Agent State**: Persistent state is managed through LangGraph checkpointers, allowing session resumption.
+- **Memory Configuration**: Mem0 memory layer can be configured via `config.yaml` with options for enabling/disabling, user isolation, and custom vector store settings.

@@ -28,6 +28,26 @@ models:
     # timeout: 60
     # max_retries: 3
 
+memory:
+  enabled: true
+  user_id: default_user
+  search_limit: 5
+  # Optional: Custom Mem0 configuration
+  # config:
+  #   vector_store:
+  #     provider: qdrant
+  #     config:
+  #       path: ./.mem0/qdrant
+  #   llm:
+  #     provider: openai
+  #     config:
+  #       model: gpt-4.1-nano-2025-04-14
+  #       temperature: 0
+  #   embedder:
+  #     provider: openai
+  #     config:
+  #       model: text-embedding-3-small
+
 tools:
   enabled:
     - edit
