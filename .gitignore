@@ -37,3 +37,4 @@ tests/
 .ruff_cache/
 .mypy_cache/
 .qwen/
+.qoder/
