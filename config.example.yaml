@@ -68,3 +68,19 @@ tools:
     docs-langchain:
       transport: 'streamable_http'
       url: 'https://docs.langchain.com/mcp'
+
+# Sandbox configuration for secure command execution
+sandbox:
+  enabled: false  # Set to true to enable Docker sandbox
+  provider: docker
+  image: python:3.12-slim
+  working_dir: /workspace
+  resource_limits:
+    cpu: "1.0"        # Number of CPUs
+    memory: "512M"    # Memory limit
+    disk: "1G"        # Disk space limit
+    pids_limit: 100   # Max processes
+  network: disabled   # disabled | bridge | host
+  timeout: 60         # Default execution timeout (seconds)
+  # environment:      # Optional environment variables
+  #   PATH: /usr/local/bin:/usr/bin:/bin

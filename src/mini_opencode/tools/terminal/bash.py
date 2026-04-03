@@ -1,8 +1,18 @@
-import threading
+"""Bash terminal tool for executing shell commands.
+
+This module provides a bash tool for executing commands either:
+1. In a Docker sandbox (when enabled) - Secure, isolated execution
+2. Directly on the host (fallback) - With command filtering for safety
+"""
+
+import asyncio
 import re
+import threading
+from typing import Any
 
 from langchain.tools import ToolRuntime, tool
 
+from mini_opencode.config import get_config_section
 from mini_opencode.project import project
 from mini_opencode.tools.reminders import generate_reminders
 
@@ -36,6 +46,34 @@ ALLOWED_COMMANDS = [
 ]
 
 
+# Sandbox state
+_sandbox_manager: Any = None
+_sandbox_enabled: bool | None = None
+
+
+def _is_sandbox_enabled() -> bool:
+    """Check if sandbox execution is enabled in config."""
+    global _sandbox_enabled
+    if _sandbox_enabled is None:
+        sandbox_config = get_config_section(["sandbox"])
+        _sandbox_enabled = (
+            isinstance(sandbox_config, dict) and sandbox_config.get("enabled", False)
+        )
+    return _sandbox_enabled
+
+
+def _get_sandbox_manager() -> Any:
+    """Get the sandbox manager instance (lazy initialization)."""
+    global _sandbox_manager
+    if _sandbox_manager is None and _is_sandbox_enabled():
+        try:
+            from mini_opencode.tools.sandbox import SandboxManager
+            _sandbox_manager = SandboxManager(project_root=project.root_dir)
+        except Exception:
+            pass
+    return _sandbox_manager
+
+
 def is_dangerous_command(command: str) -> bool:
     """Check if a command is dangerous."""
     for pattern in DANGEROUS_PATTERNS:
@@ -57,8 +95,9 @@ def bash_tool(
     command: str,
     reset_cwd: bool | None = False,
     timeout: int | None = 60,
-):
-    """Execute a standard bash command in a keep-alive shell, and return the output if successful or error message if failed.
+    use_sandbox: bool | None = None,
+) -> str:
+    """Execute a standard bash command, optionally in a sandboxed environment.
 
     Use this tool to perform:
     - Create directories
@@ -76,6 +115,7 @@ def bash_tool(
         command: The command to execute.
         reset_cwd: Whether to reset the current working directory to the project root directory.
         timeout: Maximum time to wait for the command to complete (in seconds). Default is 60.
+        use_sandbox: Whether to use sandbox execution. None = auto-detect from config.
         
     Returns:
         str: The command output if successful, or error message if failed
@@ -89,6 +129,17 @@ def bash_tool(
     if not command:
         return f"Error: Empty command.{reminders}"
 
+    # Determine whether to use sandbox
+    should_use_sandbox = use_sandbox if use_sandbox is not None else _is_sandbox_enabled()
+
+    if should_use_sandbox:
+        # Try sandbox execution
+        result = _execute_in_sandbox(command, timeout or 60)
+        if result is not None:
+            return f"```\n{result}\n```{reminders}"
+        # Fall through to direct execution if sandbox failed
+
+    # Direct execution with safety checks
     # Check for dangerous commands
     if is_dangerous_command(command):
         return f"Error: Command blocked for security reasons. This command could cause system damage.{reminders}"
@@ -117,3 +168,35 @@ def bash_tool(
             keep_alive_terminal = None
 
     return f"```\n{output}\n```{reminders}"
+
+
+def _execute_in_sandbox(command: str, timeout: int) -> str | None:
+    """Execute command in sandbox if available.
+
+    Args:
+        command: The command to execute.
+        timeout: Execution timeout in seconds.
+
+    Returns:
+        Command output string, or None if sandbox execution failed.
+    """
+    manager = _get_sandbox_manager()
+    if manager is None or not manager.is_enabled:
+        return None
+
+    try:
+        # Run async sandbox execution in sync context
+        loop = asyncio.new_event_loop()
+        try:
+            result = loop.run_until_complete(
+                manager.execute(command, timeout=timeout)
+            )
+            if result.success:
+                return result.stdout or result.output
+            else:
+                return f"[Sandbox] {result.output or result.error_message}"
+        finally:
+            loop.close()
+    except Exception as e:
+        # Log and fall through to direct execution
+        return None
