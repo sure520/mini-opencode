@@ -16,20 +16,36 @@ from textual.widgets import TabbedContent
 
 from mini_opencode import project
 from mini_opencode.agents import create_coding_agent
+from mini_opencode.agents.state import MultiAgentState
+from mini_opencode.agents.types import CoordinationState, TaskStatus
+from mini_opencode.agents.workflow import CodingWorkflowRunner, compile_coding_workflow
 from mini_opencode.cli.components import (
     ChatView,
     EditorTabs,
     TerminalView,
     TodoListView,
+    WorkflowView,
 )
 from mini_opencode.cli.history import HistoryManager
 from mini_opencode.config import get_config_section
+from mini_opencode.config.memory_config import (
+    get_tiered_memory_config,
+    get_tiered_memory_enabled,
+)
 from mini_opencode.services import MemoryService
+from mini_opencode.services.memory.tiered_memory import TieredMemoryManager
 from mini_opencode.tools.mcp.mcp_manager import get_mcp_manager
+from mini_opencode.tools.sandbox.manager import SandboxManager, get_sandbox_manager
 
 
 class AgentController:
-    """Controller for managing the AI agent and its interactions."""
+    """Controller for managing the AI agent and its interactions.
+
+    Supports two modes:
+    - "single": Traditional single-agent mode using create_coding_agent + astream.
+    - "workflow": Multi-agent DAG workflow (Plan-Code-Test-Fix) using
+      CodingWorkflowRunner + astream(stream_mode=["updates"]).
+    """
 
     def __init__(self, app: 'App[Any]'):
         self.app = app
@@ -43,7 +59,18 @@ class AgentController:
         self._cancelled = False
         self._mcp_manager = get_mcp_manager()
         self._config_watch_enabled = False
+
+        # Memory: dual-track (flat MemoryService or TieredMemoryManager)
         self._memory_service: MemoryService | None = None
+        self._tiered_memory: TieredMemoryManager | None = None
+
+        # Sandbox
+        self._sandbox_manager: SandboxManager | None = None
+
+        # Workflow mode
+        self._mode: str = "single"  # "single" | "workflow"
+        self._workflow_runner: CodingWorkflowRunner | None = None
+
         self._current_user_message: HumanMessage | None = None
         self._current_ai_message: AIMessage | None = None
 
@@ -61,8 +88,10 @@ class AgentController:
             self.app.is_generating = value
 
     async def init_agent(self, enable_config_watch: bool = True) -> None:
-        """Initialize the agent and load tools."""
+        """Initialize the agent, memory, sandbox, and workflow mode."""
         terminal_view = self.app.query_one("#terminal-view", TerminalView)
+
+        # --- Load MCP tools ---
         terminal_view.write("$ Loading MCP tools...")
         try:
             self._mcp_tools = await self._mcp_manager.load_tools()
@@ -78,31 +107,101 @@ class AgentController:
         except Exception:
             terminal_view.write("- Error loading tools.\n", True)
 
-        # 注册工具更新回调
         self._mcp_manager.on_tools_updated(self._on_tools_updated)
 
-        # 启动配置文件监听器
         if enable_config_watch:
             await self.start_config_watch()
 
-        # Initialize memory service
+        # --- Initialize memory (tiered or flat) ---
         memory_enabled = get_config_section(['memory', 'enabled'])
         memory_enabled = memory_enabled if isinstance(memory_enabled, bool) else True
         memory_user_id = get_config_section(['memory', 'user_id'])
         memory_user_id = (
             memory_user_id if isinstance(memory_user_id, str) else 'default'
         )
-        self._memory_service = MemoryService(
-            enabled=memory_enabled, user_id=memory_user_id
+
+        tiered_enabled = get_tiered_memory_enabled()
+        if tiered_enabled and memory_enabled:
+            try:
+                tiered_config = get_tiered_memory_config()
+                self._tiered_memory = TieredMemoryManager(
+                    config=tiered_config,
+                    user_id=memory_user_id,
+                    mem0_enabled=memory_enabled,
+                )
+                self._tiered_memory.short_term.set_session(self._session_id)
+                st_cap = tiered_config.short_term_capacity
+                wm_cap = tiered_config.working_memory_capacity
+                lt_status = "Mem0" if self._tiered_memory.is_mem0_enabled else "off"
+                terminal_view.write(
+                    f"- Tiered memory enabled "
+                    f"(ST:{st_cap}/WM:{wm_cap}/LT:{lt_status})\n",
+                    True,
+                )
+            except Exception as e:
+                terminal_view.write(
+                    f"- Tiered memory init failed ({e}), falling back to flat.\n",
+                    True,
+                )
+                self._tiered_memory = None
+
+        # Fallback to flat MemoryService if tiered is not active
+        if self._tiered_memory is None:
+            self._memory_service = MemoryService(
+                enabled=memory_enabled, user_id=memory_user_id
+            )
+            if self._memory_service.is_enabled:
+                terminal_view.write(
+                    f"- Memory service (flat) enabled for user: {memory_user_id}\n",
+                    True,
+                )
+            else:
+                terminal_view.write("- Memory service disabled.\n", True)
+
+        # --- Initialize sandbox ---
+        sandbox_enabled = get_config_section(['sandbox', 'enabled'])
+        sandbox_enabled = sandbox_enabled if isinstance(sandbox_enabled, bool) else False
+        if sandbox_enabled:
+            try:
+                self._sandbox_manager = get_sandbox_manager(
+                    project_root=str(project.root_dir)
+                )
+                stats = self._sandbox_manager.get_stats()
+                terminal_view.write(
+                    f"- Sandbox: enabled ({stats['provider']}, "
+                    f"network={stats['network_mode']})\n",
+                    True,
+                )
+            except Exception as e:
+                terminal_view.write(f"- Sandbox init failed: {e}\n", True)
+                self._sandbox_manager = None
+        else:
+            terminal_view.write("- Sandbox: disabled\n", True)
+
+        # --- Initialize workflow mode ---
+        workflow_enabled = get_config_section(['workflow', 'enabled'])
+        workflow_enabled = (
+            workflow_enabled if isinstance(workflow_enabled, bool) else False
         )
-        if self._memory_service.is_enabled:
+        if workflow_enabled:
+            default_mode = get_config_section(['workflow', 'default_mode'])
+            self._mode = (
+                default_mode
+                if isinstance(default_mode, str) and default_mode in ("single", "workflow")
+                else "single"
+            )
+            max_iter = get_config_section(['workflow', 'max_fix_iterations'])
+            max_iter = max_iter if isinstance(max_iter, int) else 3
+            self._workflow_runner = CodingWorkflowRunner(max_iterations=max_iter)
+
+        if self._mode == "workflow":
             terminal_view.write(
-                f"- Memory service enabled for user: {memory_user_id}\n",
-                True,
+                "- Agent mode: workflow (Plan-Code-Test-Fix)\n", True
             )
         else:
-            terminal_view.write("- Memory service disabled.\n", True)
+            terminal_view.write("- Agent mode: single\n", True)
 
+        # --- Load single-agent (always needed for single mode and session resume) ---
         terminal_view.write("$ Loading agent...")
         try:
             self._coding_agent = create_coding_agent(
@@ -115,98 +214,38 @@ class AgentController:
             if hasattr(self.app, 'focus_input'):
                 self.app.focus_input()
         except Exception as e:
-            # Fatal error, exit the application
             terminal_view.write(f"- Error loading agent: {e}\n", True)
             await asyncio.sleep(3)
             self.app.exit(1)
 
+    # ==================== User Input Handling ====================
+
     async def handle_user_input(self, user_message: HumanMessage) -> None:
-        """Handle user input and stream the response."""
+        """Handle user input - dispatches to single-agent or workflow mode."""
         self._cancelled = False
         self._current_user_message = user_message
         self._current_ai_message = None
         self.process_outgoing_message(user_message)
         self.is_generating = True
 
-        # Yield control to allow cancellation to be detected immediately
+        # Add to tiered short-term memory
+        if self._tiered_memory:
+            self._tiered_memory.add_message(
+                user_message.content,
+                metadata={'role': 'human', 'session_id': self._session_id},
+            )
+
         await asyncio.sleep(0)
 
         try:
-            if not self._coding_agent:
-                error_message = AIMessage(
-                    content=(
-                        "❌ **Agent not initialized.** "
-                        "Please restart the application."
-                    )
-                )
-                self.process_incoming_message(error_message)
-                return
-
-            current_ai_message: AIMessageChunk | None = None
-            try:
-                async for event_type, chunk in self._coding_agent.astream(
-                    {"messages": [user_message]},
-                    stream_mode=["messages", "updates"],
-                    config={"recursion_limit": 100, "thread_id": "thread_1"},
-                ):
-                    # Check cancellation before processing each chunk
-                    if self._cancelled:
-                        break
-
-                    # Yield control to allow cancellation to be detected immediately
-                    await asyncio.sleep(0)
-
-                    if event_type == "messages":
-                        message_chunk, _ = chunk
-                        if isinstance(message_chunk, AIMessageChunk):
-                            if current_ai_message is None:
-                                current_ai_message = message_chunk
-                                self.process_incoming_message(current_ai_message)
-                            else:
-                                current_ai_message += message_chunk
-                                self.update_incoming_message(
-                                    current_ai_message, update_tools=False
-                                )
-
-                    elif event_type == 'updates':
-                        current_ai_message = None
-
-                        roles = chunk.keys()
-                        for role in roles:
-                            if self._cancelled:
-                                break
-                            messages: list[AnyMessage] = chunk[role].get('messages', [])
-                            for message in messages:
-                                if self._cancelled:
-                                    break
-                                # Yield control before processing each message
-                                await asyncio.sleep(0)
-                                if isinstance(message, AIMessage):
-                                    self._current_ai_message = message
-                                    self.update_incoming_message(
-                                        message, update_tools=True
-                                    )
-                                    if message.tool_calls:
-                                        self.process_tool_call_message(message)
-                                elif isinstance(message, ToolMessage):
-                                    self.process_incoming_message(message)
-                                    self.process_tool_message(message)
-            except asyncio.CancelledError:
-                self._cancelled = True
-                terminal_view = self.app.query_one("#terminal-view", TerminalView)
-                terminal_view.write("\n$ [Operation cancelled]")
-                self.is_generating = False
-                if hasattr(self.app, "focus_input"):
-                    self.app.focus_input()
-                return
+            if self._mode == "workflow" and self._workflow_runner:
+                await self._handle_workflow_input(user_message)
+            else:
+                await self._handle_single_agent_input(user_message)
         except asyncio.CancelledError:
             self._cancelled = True
             terminal_view = self.app.query_one("#terminal-view", TerminalView)
             terminal_view.write("\n$ [Operation cancelled]")
-            self.is_generating = False
-            if hasattr(self.app, "focus_input"):
-                self.app.focus_input()
-            return
         except Exception as e:
             if not self._cancelled:
                 error_message = AIMessage(
@@ -217,10 +256,222 @@ class AgentController:
             self.is_generating = False
             if not self._cancelled:
                 await self.save_current_history()
-                # Save conversation to memory
                 await self._save_conversation_to_memory()
             if hasattr(self.app, 'focus_input'):
                 self.app.focus_input()
+
+    async def _handle_single_agent_input(self, user_message: HumanMessage) -> None:
+        """Handle input in single-agent mode (existing astream logic)."""
+        if not self._coding_agent:
+            error_message = AIMessage(
+                content=(
+                    "❌ **Agent not initialized.** "
+                    "Please restart the application."
+                )
+            )
+            self.process_incoming_message(error_message)
+            return
+
+        current_ai_message: AIMessageChunk | None = None
+        try:
+            async for event_type, chunk in self._coding_agent.astream(
+                {"messages": [user_message]},
+                stream_mode=["messages", "updates"],
+                config={"recursion_limit": 100, "thread_id": "thread_1"},
+            ):
+                if self._cancelled:
+                    break
+
+                await asyncio.sleep(0)
+
+                if event_type == "messages":
+                    message_chunk, _ = chunk
+                    if isinstance(message_chunk, AIMessageChunk):
+                        if current_ai_message is None:
+                            current_ai_message = message_chunk
+                            self.process_incoming_message(current_ai_message)
+                        else:
+                            current_ai_message += message_chunk
+                            self.update_incoming_message(
+                                current_ai_message, update_tools=False
+                            )
+
+                elif event_type == 'updates':
+                    current_ai_message = None
+
+                    roles = chunk.keys()
+                    for role in roles:
+                        if self._cancelled:
+                            break
+                        messages: list[AnyMessage] = chunk[role].get('messages', [])
+                        for message in messages:
+                            if self._cancelled:
+                                break
+                            await asyncio.sleep(0)
+                            if isinstance(message, AIMessage):
+                                self._current_ai_message = message
+                                self.update_incoming_message(
+                                    message, update_tools=True
+                                )
+                                if message.tool_calls:
+                                    self.process_tool_call_message(message)
+                            elif isinstance(message, ToolMessage):
+                                self.process_incoming_message(message)
+                                self.process_tool_message(message)
+        except asyncio.CancelledError:
+            self._cancelled = True
+            terminal_view = self.app.query_one("#terminal-view", TerminalView)
+            terminal_view.write("\n$ [Operation cancelled]")
+            self.is_generating = False
+            if hasattr(self.app, "focus_input"):
+                self.app.focus_input()
+
+    async def _handle_workflow_input(self, user_message: HumanMessage) -> None:
+        """Handle input in workflow mode (Plan-Code-Test-Fix DAG)."""
+        terminal_view = self.app.query_one("#terminal-view", TerminalView)
+        workflow_view = self.app.query_one("#workflow-view", WorkflowView)
+        bottom_tabs = self.app.query_one("#bottom-right-tabs", TabbedContent)
+
+        # Switch to workflow tab
+        bottom_tabs.active = "workflow-tab"
+
+        # Get memory context
+        memory_context = await self._get_memory_context_async(user_message.content)
+
+        # Add task context to working memory
+        if self._tiered_memory:
+            self._tiered_memory.add_task_context(
+                task_id=self._session_id,
+                content=user_message.content,
+                metadata={'type': 'workflow_request'},
+            )
+
+        # Build initial state
+        memory_user_id = get_config_section(['memory', 'user_id'])
+        memory_user_id = (
+            memory_user_id if isinstance(memory_user_id, str) else 'default'
+        )
+        max_iter = get_config_section(['workflow', 'max_fix_iterations'])
+        max_iter = max_iter if isinstance(max_iter, int) else 3
+
+        initial_state = MultiAgentState.create_initial(
+            user_id=memory_user_id,
+            memory_context=memory_context,
+        )
+        initial_state["messages"] = [user_message]
+        initial_state["coordination"] = CoordinationState(
+            max_iterations=max_iter
+        )
+
+        # Compile workflow and stream updates
+        compiled = compile_coding_workflow()
+        terminal_view.write("$ Workflow started (Plan-Code-Test-Fix)")
+
+        final_state: dict[str, Any] | None = None
+
+        try:
+            async for chunk in compiled.astream(
+                initial_state,
+                stream_mode="updates",
+                config={"recursion_limit": 50},
+            ):
+                if self._cancelled:
+                    break
+
+                await asyncio.sleep(0)
+
+                for node_name, node_output in chunk.items():
+                    if self._cancelled:
+                        break
+
+                    # Extract progress info from node output
+                    subtasks = node_output.get("subtasks", [])
+                    coordination = node_output.get(
+                        "coordination", CoordinationState()
+                    )
+
+                    phase = (
+                        coordination.phase.value
+                        if hasattr(coordination, 'phase')
+                        else node_name
+                    )
+
+                    # Update workflow view
+                    subtask_dicts = []
+                    for t in subtasks:
+                        if hasattr(t, 'to_dict'):
+                            subtask_dicts.append(t.to_dict())
+                        elif isinstance(t, dict):
+                            subtask_dicts.append(t)
+
+                    workflow_view.update_status(
+                        phase=phase,
+                        subtasks=subtask_dicts,
+                        iteration=coordination.iteration_count
+                        if hasattr(coordination, 'iteration_count')
+                        else 0,
+                        max_iterations=coordination.max_iterations
+                        if hasattr(coordination, 'max_iterations')
+                        else max_iter,
+                    )
+
+                    terminal_view.write(
+                        f"  [{node_name}] phase: {phase}", muted=True
+                    )
+
+                    final_state = node_output
+
+        except asyncio.CancelledError:
+            self._cancelled = True
+            terminal_view.write("\n$ [Workflow cancelled]")
+            workflow_view.clear_workflow()
+            return
+
+        # Extract and display result
+        if final_state and not self._cancelled:
+            runner = CodingWorkflowRunner()
+            result_text = runner.get_result(final_state)
+            summary = runner.get_summary(final_state)
+
+            ai_response = AIMessage(content=result_text)
+            self.process_incoming_message(ai_response)
+            self._current_ai_message = ai_response
+
+            terminal_view.write(
+                f"\n$ Workflow complete: "
+                f"{summary['completed_tasks']}/{summary['total_tasks']} tasks, "
+                f"{summary['fix_iterations']} fix iterations"
+            )
+        elif not self._cancelled:
+            fallback = AIMessage(
+                content="Workflow completed but no final response was generated."
+            )
+            self.process_incoming_message(fallback)
+            self._current_ai_message = fallback
+
+    # ==================== Mode Management ====================
+
+    def toggle_mode(self) -> str:
+        """Toggle between single-agent and workflow mode.
+
+        Returns:
+            The new mode name, or an error message.
+        """
+        if self.is_generating:
+            return "Cannot switch mode while agent is running."
+
+        workflow_enabled = get_config_section(['workflow', 'enabled'])
+        if not (isinstance(workflow_enabled, bool) and workflow_enabled):
+            return "Workflow mode is not enabled in config. Set workflow.enabled: true."
+
+        if self._mode == "single":
+            self._mode = "workflow"
+        else:
+            self._mode = "single"
+
+        return self._mode
+
+    # ==================== Message Display ====================
 
     def process_outgoing_message(self, message: HumanMessage) -> None:
         """Add user message to chat view."""
@@ -244,6 +495,8 @@ class AgentController:
             return
         chat_view = self.app.query_one("#chat-view", ChatView)
         chat_view.update_message(message, update_tools=update_tools)
+
+    # ==================== Tool Call Handling ====================
 
     def process_tool_call_message(self, message: AIMessage) -> None:
         """Handle tool calls from the agent."""
@@ -298,6 +551,8 @@ class AgentController:
             editor_tabs = self.app.query_one("#editor-tabs", EditorTabs)
             editor_tabs.open_file(path)
 
+    # ==================== History & Memory ====================
+
     async def save_current_history(self) -> None:
         """Save the current session history."""
         if not self._coding_agent:
@@ -314,6 +569,86 @@ class AgentController:
                     )
         except Exception:
             pass
+
+    async def _save_conversation_to_memory(self) -> None:
+        """Save the current conversation to memory."""
+        if not self._current_user_message or not self._current_ai_message:
+            return
+
+        # Tiered memory path
+        if self._tiered_memory:
+            try:
+                ai_content = (
+                    self._current_ai_message.content
+                    if isinstance(self._current_ai_message.content, str)
+                    else str(self._current_ai_message.content)
+                )
+                self._tiered_memory.add_message(
+                    ai_content,
+                    metadata={'role': 'assistant', 'session_id': self._session_id},
+                )
+                # Also persist to long-term memory
+                combined = (
+                    f"User: {self._current_user_message.content}\n"
+                    f"Assistant: {ai_content}"
+                )
+                await self._tiered_memory.add_to_long_term(
+                    content=combined,
+                    metadata={
+                        'session_id': self._session_id,
+                        'project_root': str(project.root_dir),
+                    },
+                )
+            except Exception:
+                pass
+            return
+
+        # Flat MemoryService fallback
+        if self._memory_service and self._memory_service.is_enabled:
+            try:
+                await self._memory_service.add_messages(
+                    [self._current_user_message, self._current_ai_message],
+                    metadata={
+                        'session_id': self._session_id,
+                        'project_root': project.root_dir,
+                    },
+                )
+            except Exception:
+                pass
+
+    async def _get_memory_context_async(self, query: str) -> str:
+        """Get memory context string for prompt injection.
+
+        Args:
+            query: The user query to search memory for.
+
+        Returns:
+            Formatted memory context string.
+        """
+        if self._tiered_memory:
+            context = self._tiered_memory.get_memory_context(query)
+            try:
+                long_term_results = await self._tiered_memory.search_long_term(
+                    query, limit=3
+                )
+                if long_term_results:
+                    lt_texts = [
+                        f"- {r.memory.content[:200]}" for r in long_term_results
+                    ]
+                    context += "\n\n## Long-term Memory:\n" + "\n".join(lt_texts)
+            except Exception:
+                pass
+            return context
+
+        if self._memory_service and self._memory_service.is_enabled:
+            try:
+                return await self._memory_service.get_memory_context(query)
+            except Exception:
+                pass
+
+        return ""
+
+    # ==================== Formatting Helpers ====================
 
     def _format_tool_call_preview(
         self, tool_name: str, tool_args: dict[str, Any]
@@ -361,32 +696,12 @@ class AgentController:
             return match.group(1)
         return text
 
-    async def _save_conversation_to_memory(self) -> None:
-        """Save the current conversation to long-term memory."""
-        if (
-            self._memory_service
-            and self._memory_service.is_enabled
-            and self._current_user_message
-            and self._current_ai_message
-        ):
-            try:
-                await self._memory_service.add_messages(
-                    [self._current_user_message, self._current_ai_message],
-                    metadata={
-                        'session_id': self._session_id,
-                        'project_root': project.root_dir,
-                    },
-                )
-            except Exception:
-                # Memory save errors should not affect the conversation
-                pass
+    # ==================== MCP & Config Watch ====================
 
     def _on_tools_updated(self, new_tools: list[Any]) -> None:
-        """当 MCP 工具更新时的回调处理。"""
-        # 更新工具列表
+        """Callback when MCP tools are updated."""
         self._mcp_tools = new_tools
 
-        # 重新创建智能体以应用新工具
         if self._coding_agent:
             self._coding_agent = create_coding_agent(
                 plugin_tools=self._mcp_tools,
@@ -394,7 +709,6 @@ class AgentController:
                 memory_service=self._memory_service,
             )
 
-        # 在终端显示更新信息
         terminal_view = self.app.query_one("#terminal-view", TerminalView)
         tool_count = len(new_tools)
         terminal_view.write(
@@ -404,18 +718,18 @@ class AgentController:
         )
 
     async def start_config_watch(self) -> None:
-        """启动配置文件监听器。"""
+        """Start config file watcher."""
         if not self._config_watch_enabled:
             self._config_watch_enabled = True
             await self._mcp_manager.start_watching()
 
     async def stop_config_watch(self) -> None:
-        """停止配置文件监听器。"""
+        """Stop config file watcher."""
         self._config_watch_enabled = False
         await self._mcp_manager.stop_watching()
 
     async def reload_mcp_tools(self) -> None:
-        """手动重新加载 MCP 工具。"""
+        """Manually reload MCP tools."""
         terminal_view = self.app.query_one("#terminal-view", TerminalView)
         terminal_view.write("$ Reloading MCP tools...")
         try:
@@ -423,6 +737,8 @@ class AgentController:
             terminal_view.write("- MCP tools reloaded successfully.\n", True)
         except Exception as e:
             terminal_view.write(f"- Error reloading MCP tools: {e}\n", True)
+
+    # ==================== Session Management ====================
 
     def clear_session(self) -> None:
         """Reset the agent session."""
@@ -437,6 +753,18 @@ class AgentController:
         self._session_id = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
         self._current_user_message = None
         self._current_ai_message = None
+
+        # Clear tiered memory session
+        if self._tiered_memory:
+            self._tiered_memory.clear_session()
+            self._tiered_memory.short_term.set_session(self._session_id)
+
+        # Clear workflow view
+        try:
+            workflow_view = self.app.query_one("#workflow-view", WorkflowView)
+            workflow_view.clear_workflow()
+        except Exception:
+            pass
 
     async def load_session(self, session_id: str, messages: list[AnyMessage]) -> None:
         """Load a previous session."""
@@ -456,3 +784,15 @@ class AgentController:
         self._session_id = session_id
         self._current_user_message = None
         self._current_ai_message = None
+
+        # Update tiered memory session
+        if self._tiered_memory:
+            self._tiered_memory.short_term.set_session(session_id)
+
+    async def cleanup_sandbox(self) -> None:
+        """Clean up sandbox resources."""
+        if self._sandbox_manager:
+            try:
+                await self._sandbox_manager.cleanup()
+            except Exception:
+                pass

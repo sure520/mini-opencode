@@ -1,4 +1,5 @@
 from typing import Any
+
 from langchain.messages import AIMessage
 from textual.app import App
 
@@ -9,6 +10,7 @@ from mini_opencode.cli.components import (
     MessageListView,
     TerminalView,
     TodoListView,
+    WorkflowView,
 )
 
 from .agent_controller import AgentController
@@ -17,7 +19,16 @@ from .agent_controller import AgentController
 class CommandController:
     """Controller for handling slash commands."""
 
-    SLASH_COMMANDS = ["/clear", "/resume", "/exit", "/quit", "/mcp-reload"]
+    SLASH_COMMANDS = [
+        "/clear",
+        "/resume",
+        "/exit",
+        "/quit",
+        "/mcp-reload",
+        "/workflow",
+        "/memory",
+        "/sandbox",
+    ]
 
     def __init__(self, app: "App[Any]", agent_controller: AgentController):
         self.app = app
@@ -38,6 +49,12 @@ class CommandController:
             self.app.run_worker(self.action_quit())
         elif cmd == "/mcp-reload":
             self.app.run_worker(self.handle_mcp_reload_command())
+        elif cmd == "/workflow":
+            self.handle_workflow_command(args)
+        elif cmd == "/memory":
+            self.app.run_worker(self.handle_memory_command(args))
+        elif cmd == "/sandbox":
+            self.handle_sandbox_command(args)
         else:
             terminal_view = self.app.query_one("#terminal-view", TerminalView)
             terminal_view.write(f"Unknown command: {cmd}\n")
@@ -99,7 +116,6 @@ class CommandController:
 
             self.clear_ui()
             chat_view = self.app.query_one("#chat-view", ChatView)
-            # MessageListView.clear already handles messages, we just need to add them back
             for msg in messages:
                 chat_view.add_message(msg)  # type: ignore
 
@@ -122,6 +138,99 @@ class CommandController:
         except Exception as e:
             terminal_view.write(f"Error: {e}\n")
 
+    # ==================== New Commands ====================
+
+    def handle_workflow_command(self, args: list[str]) -> None:
+        """Handle /workflow [on|off|status] command."""
+        terminal_view = self.app.query_one("#terminal-view", TerminalView)
+        ac = self.agent_controller
+
+        if not args or args[0] == "status":
+            terminal_view.write(f"Current agent mode: {ac._mode}\n")
+            return
+
+        subcmd = args[0].lower()
+        if subcmd == "on":
+            if ac._mode == "workflow":
+                terminal_view.write("Already in workflow mode.\n")
+                return
+            result = ac.toggle_mode()
+            if result == "workflow":
+                terminal_view.write("Switched to workflow mode (Plan-Code-Test-Fix).\n")
+            else:
+                terminal_view.write(f"{result}\n")
+        elif subcmd == "off":
+            if ac._mode == "single":
+                terminal_view.write("Already in single-agent mode.\n")
+                return
+            result = ac.toggle_mode()
+            if result == "single":
+                terminal_view.write("Switched to single-agent mode.\n")
+            else:
+                terminal_view.write(f"{result}\n")
+        else:
+            terminal_view.write(
+                "Usage: /workflow [on|off|status]\n"
+            )
+
+    async def handle_memory_command(self, args: list[str]) -> None:
+        """Handle /memory [stats|clear] command."""
+        terminal_view = self.app.query_one("#terminal-view", TerminalView)
+        ac = self.agent_controller
+
+        subcmd = args[0].lower() if args else "stats"
+
+        if subcmd == "stats":
+            if ac._tiered_memory:
+                stats = ac._tiered_memory.get_stats()
+                terminal_view.write("Memory System: Tiered\n")
+                terminal_view.write(
+                    f"  Short-term: {stats['short_term_count']}"
+                    f"/{stats['short_term_capacity']}\n"
+                )
+                terminal_view.write(
+                    f"  Working:    {stats['working_count']}"
+                    f"/{stats['working_capacity']}\n"
+                )
+                lt_status = "enabled" if stats['long_term_enabled'] else "disabled"
+                terminal_view.write(f"  Long-term:  {lt_status}\n")
+                terminal_view.write(f"  User ID:    {stats['user_id']}\n")
+            elif ac._memory_service:
+                status = "enabled" if ac._memory_service.is_enabled else "disabled"
+                terminal_view.write(f"Memory System: Flat ({status})\n")
+            else:
+                terminal_view.write("Memory System: Not initialized\n")
+        elif subcmd == "clear":
+            if ac._tiered_memory:
+                ac._tiered_memory.clear_session()
+                terminal_view.write("Short-term memory cleared.\n")
+            else:
+                terminal_view.write("No tiered memory to clear.\n")
+        else:
+            terminal_view.write("Usage: /memory [stats|clear]\n")
+
+    def handle_sandbox_command(self, args: list[str]) -> None:
+        """Handle /sandbox [status] command."""
+        terminal_view = self.app.query_one("#terminal-view", TerminalView)
+        ac = self.agent_controller
+
+        if ac._sandbox_manager:
+            stats = ac._sandbox_manager.get_stats()
+            terminal_view.write("Sandbox Status:\n")
+            terminal_view.write(f"  Enabled:   {stats['enabled']}\n")
+            terminal_view.write(f"  Provider:  {stats['provider']}\n")
+            terminal_view.write(f"  Image:     {stats['image']}\n")
+            terminal_view.write(f"  Timeout:   {stats['timeout']}s\n")
+            terminal_view.write(f"  Network:   {stats['network_mode']}\n")
+            sandbox_id = stats.get('current_sandbox')
+            terminal_view.write(
+                f"  Container: {sandbox_id or '(none active)'}\n"
+            )
+        else:
+            terminal_view.write("Sandbox: not configured\n")
+
+    # ==================== Existing ====================
+
     async def action_quit(self) -> None:
         """Save history and exit the application."""
         await self.agent_controller.save_current_history()
@@ -141,3 +250,9 @@ class CommandController:
 
         todo_list_view = self.app.query_one("#todo-list-view", TodoListView)
         todo_list_view.update_items([])
+
+        try:
+            workflow_view = self.app.query_one("#workflow-view", WorkflowView)
+            workflow_view.clear_workflow()
+        except Exception:
+            pass

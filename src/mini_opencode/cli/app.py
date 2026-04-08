@@ -19,6 +19,7 @@ from mini_opencode.cli.components import (
     SuggestionView,
     TerminalView,
     TodoListView,
+    WorkflowView,
 )
 from mini_opencode.cli.controllers import (
     AgentController,
@@ -245,6 +246,8 @@ class ConsoleApp(App[Any]):
 
     def on_unmount(self) -> None:
         """Clean up resources when the application exits."""
-        # 停止配置文件监听器
+        if hasattr(self, "agent_controller"):
+            asyncio.create_task(self.agent_controller.stop_config_watch())
+            asyncio.create_task(self.agent_controller.cleanup_sandbox())
         if hasattr(self, "agent_controller"):
             asyncio.create_task(self.agent_controller.stop_config_watch())

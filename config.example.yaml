@@ -32,6 +32,14 @@ memory:
   enabled: true
   user_id: default_user
   search_limit: 5
+  # Tiered memory system configuration
+  tiered:
+    enabled: true               # Use TieredMemoryManager instead of flat MemoryService
+    short_term_capacity: 100    # Max messages in short-term memory
+    working_memory_capacity: 10 # Max task contexts in working memory
+    working_memory_ttl_hours: 24 # Hours before working memory expires
+    decay_half_life_days: 30    # Half-life for time decay calculation
+    min_decay_factor: 0.1       # Minimum decay factor
   # Optional: Custom Mem0 configuration
   # config:
   #   vector_store:
@@ -84,3 +92,10 @@ sandbox:
   timeout: 60         # Default execution timeout (seconds)
   # environment:      # Optional environment variables
   #   PATH: /usr/local/bin:/usr/bin:/bin
+
+# Workflow configuration for multi-agent DAG execution
+workflow:
+  enabled: false              # Set to true to enable workflow mode
+  default_mode: "single"     # "single" | "workflow" — startup default agent mode
+  max_fix_iterations: 3      # Maximum fix iterations in Plan-Code-Test-Fix loop
+  timeout_seconds: 300       # Workflow execution timeout

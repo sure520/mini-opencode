@@ -1,12 +1,14 @@
-"""Memory configuration module for Mem0 integration.
+"""Memory configuration module for Mem0 and tiered memory integration.
 
-This module provides configuration management for the Mem0 memory layer,
-including default configurations and configuration validation.
+This module provides configuration management for the Mem0 memory layer
+and the tiered memory system, including default configurations and
+configuration validation.
 """
 
 from typing import Any
 
 from mini_opencode.config import get_config_section
+from mini_opencode.services.memory.types import TieredMemoryConfig
 
 # Default Mem0 configuration
 DEFAULT_MEMORY_CONFIG: dict[str, Any] = {
@@ -151,3 +153,28 @@ def validate_memory_config() -> list[str]:
             )
 
     return errors
+
+
+def get_tiered_memory_enabled() -> bool:
+    """Get whether tiered memory is enabled from configuration.
+
+    Returns:
+        True if tiered memory is enabled, False otherwise.
+    """
+    enabled = get_config_section(['memory', 'tiered', 'enabled'])
+    return enabled if isinstance(enabled, bool) else False
+
+
+def get_tiered_memory_config() -> TieredMemoryConfig:
+    """Get the tiered memory configuration from config file.
+
+    Reads the ``memory.tiered`` section and constructs a TieredMemoryConfig.
+    Falls back to defaults if section is absent or incomplete.
+
+    Returns:
+        The TieredMemoryConfig instance.
+    """
+    tiered_data = get_config_section(['memory', 'tiered'])
+    if isinstance(tiered_data, dict):
+        return TieredMemoryConfig.from_dict(tiered_data)
+    return TieredMemoryConfig()

@@ -21,20 +21,30 @@
 
 ## ✨ Features
 
+### Core Capabilities
 - **🤖 Intelligent Coding Agent**: Leverages LangGraph for stateful, multi-step reasoning and execution.
-- **🧠 Long-term Memory**: Integrated Mem0 memory layer for personalized AI interactions that remember your preferences and past conversations across sessions.
-- **📝 Context-Aware Task Management**: Built-in TODO system to track progress on complex, multi-step tasks.
+- **👥 Multi-Agent Architecture**: Manager-Worker collaboration pattern with specialized agents (Coder, Debugger, Tester) for task decomposition and parallel execution.
+- **🔄 DAG Workflow Orchestration**: Automated "Plan-Code-Test-Fix" loop with conditional transitions and up to 3 iteration cycles for self-healing code generation.
+- **🧠 Tiered Memory System**: Three-layer memory architecture (Short-term/Working/Long-term) with time decay algorithms and importance scoring, powered by Mem0.
+- **🔒 Sandbox Security**: Docker container isolation for safe command execution with resource limits (CPU/Memory/Disk) and network isolation.
+
+### Tools & Extensions
 - **🛠️ Comprehensive Toolset**: Includes tools for file operations (`read`, `write`, `edit`), filesystem navigation (`ls`, `tree`, `grep`), terminal commands (`bash`), web search (`tavily`), and web crawling (`firecrawl`).
 - **🔌 Extensible Architecture**: Supports [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) for integrating external tools and servers.
 - **🚀 Agent Skills System**: Dynamically loads specialized instructions, scripts, and resources (Skills) to improve performance on specific tasks (e.g., frontend design).
+- **📋 Code Templates**: Smart template system with code generators for rapid scaffolding (FastAPI CRUD, Python API, React components).
+
+### User Interface
 - **🎨 Interactive UI**: Features a clean terminal-based interface using [Textual](https://github.com/Textualize/textual), with support for automatic dark/light mode switching and streaming model responses.
 - **⚡️ Slash Commands**: Quickly access features with commands like `/clear` to reset chat, `/resume` to restore sessions, and `/exit` to quit, complete with auto-suggestions.
 - **🛑 Instant Task Control**: Real-time task cancellation with immediate UI feedback - click the "终止" button to stop any running agent task instantly.
+- **📝 Context-Aware Task Management**: Built-in TODO system to track progress on complex, multi-step tasks.
+
+### Developer Experience
 - **⚙️ Highly Configurable**: flexible YAML-based configuration for models, tools, and API keys.
 - **🔒 Type Safe**: Fully typed codebase (Python 3.12+) ensuring reliability and developer experience.
 - **⚡ Performance Optimized**: Built-in file caching with LRU strategy and intelligent large file streaming processing.
-- **📋 Code Templates**: Smart template system with code generators for rapid scaffolding (FastAPI CRUD, Python API, React components).
-- **🧪 Testing Framework**: Integrated pytest with comprehensive unit tests for core modules.
+- **🧪 Testing Framework**: Integrated pytest with comprehensive unit tests (167+ tests) for core modules.
 - **📊 Structured Logging**: Advanced logging with structlog for better debugging and monitoring.
 - **📈 Dependency Analysis**: Built-in dependency analysis tool to visualize project dependencies.
 - **⏱️ Performance Monitoring**: Performance monitoring tool for tracking and optimizing agent performance.
@@ -134,15 +144,20 @@ Then open [https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2024](ht
 mini-opencode/
 ├── src/mini_opencode/
 │   ├── agents/           # Core agent logic & state definitions
+│   │   ├── workers/      # Multi-agent workers (Manager, Coder, Debugger, Tester)
+│   │   └── workflow.py   # DAG workflow orchestration
 │   ├── cli/              # Terminal UI (Textual) components
 │   ├── config/           # Configuration loading & validation
 │   ├── models/           # LLM model factory & setup
 │   ├── prompts/          # Prompt templates (Jinja2)
+│   ├── services/         # Service layer
+│   │   └── memory/       # Tiered memory system (decay, importance scoring)
 │   ├── skills/           # Skills system implementation (loader, parser, types)
 │   ├── tools/            # Tool implementations
 │   │   ├── file/         # File I/O (read, write, edit) with caching & streaming
 │   │   ├── fs/           # File system (ls, tree, grep)
 │   │   ├── terminal/     # Bash execution
+│   │   ├── sandbox/      # Docker sandbox isolation
 │   │   ├── web/          # Search & Crawl
 │   │   ├── mcp/          # MCP tools integration
 │   │   ├── todo/         # Task management
@@ -175,16 +190,27 @@ mini-opencode/
 - **Docstrings**: Google style required.
 - **Naming**: `snake_case` for functions/vars, `PascalCase` for classes.
 
-### Memory Layer
+### Tiered Memory System
 
-### Memory Layer
+The agent includes a sophisticated **three-layer memory architecture**:
 
-The agent includes a **Mem0** memory layer for long-term memory storage:
+- **Short-term Memory**: Stores recent N messages in current session, cleared on session end (capacity: 100 messages)
+- **Working Memory**: Maintains current task context, expires after 24 hours or task completion (capacity: 10 task contexts)
+- **Long-term Memory**: Powered by Mem0, stores user preferences, project knowledge, and historical decisions permanently
 
-- **Automatic Memory**: Conversations are automatically saved to memory after each interaction
-- **Context Injection**: Relevant memories are retrieved and injected into the system prompt
-- **User Isolation**: Each user has isolated memory using configurable `user_id`
-- **Configurable**: Enable/disable via `config.yaml`, customize vector store settings
+**Advanced Features:**
+- **Time Decay Algorithm**: Exponential decay model with configurable half-life (default: 30 days)
+- **Importance Scoring**: Combines user feedback (thumbs up/down, copy, edit) with automatic evaluation
+- **Smart Retrieval**: Relevance score = 0.5 × similarity + 0.2 × decay_factor + 0.3 × importance
+
+### Sandbox Execution
+
+Secure command execution with **Docker container isolation**:
+
+- **Resource Limits**: CPU (1 core), Memory (512MB), Disk (1GB), Process count (100)
+- **Network Isolation**: Disabled by default for security
+- **Dual Mode**: Automatic fallback to direct execution if sandbox unavailable
+- **Configurable**: Enable/disable via `config.yaml`, customize image and limits
 
 See [AGENTS.md](AGENTS.md) for detailed development guidelines.
 
